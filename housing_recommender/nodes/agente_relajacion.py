@@ -1,4 +1,3 @@
-# agente_relajacion.py
 """
 Módulo de relajación progresiva de criterios.
 Modifica los criterios de búsqueda cuando no se encuentran resultados satisfactorios.
