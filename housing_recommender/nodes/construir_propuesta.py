@@ -1,11 +1,114 @@
-def construir_propuesta(estado):
-    criterios = estado["criterios_actuales"]
-    props = estado["propiedades_encontradas"]
-    
-    filtradas = [
-        p for p in props
-        if p["precio"] <= criterios.get("precio_max", 9999999)
-        and p["area"] >= criterios.get("area_min", 0)
-        and (criterios.get("tipo") is None or p["tipo"] == criterios["tipo"])
+from __future__ import annotations
+
+from typing import Any, Mapping
+
+
+def construir_propuesta(estado: Any) -> dict[str, Any]:
+    """Construye una propuesta compatible con el modelo Propuesta."""
+
+    requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
+    propiedades = [_a_dict(propiedad) for propiedad in (_get(estado, "propiedades", []) or [])]
+
+    candidatas = [
+        propiedad
+        for propiedad in propiedades
+        if _cumple_requisitos(propiedad, requisitos)
     ]
-    return {"propiedades_filtradas": filtradas}
+
+    propiedades_con_score = [
+        {**propiedad, "score": _calcular_score(propiedad, requisitos)}
+        for propiedad in candidatas
+    ]
+    propiedades_con_score.sort(key=lambda propiedad: propiedad["score"], reverse=True)
+
+    score_global = _promedio(
+        [propiedad["score"] for propiedad in propiedades_con_score[:3]]
+    )
+
+    return {
+        "propuesta": {
+            "propiedades": propiedades_con_score[:3],
+            "score": score_global,
+        }
+    }
+
+
+def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> bool:
+    if requisitos.get("ubicacion") and str(requisitos["ubicacion"]).lower() not in str(propiedad["ubicacion"]).lower():
+        return False
+    if requisitos.get("precio_max") is not None and propiedad["precio"] > requisitos["precio_max"]:
+        return False
+    if requisitos.get("habitaciones") is not None and propiedad["habitaciones"] < requisitos["habitaciones"]:
+        return False
+    if requisitos.get("banos") is not None and propiedad["banos"] < requisitos["banos"]:
+        return False
+    if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != requisitos["parqueadero"]:
+        return False
+    if requisitos.get("tipo") and propiedad["tipo"] != requisitos["tipo"]:
+        return False
+    if requisitos.get("area_min") is not None and propiedad["area"] < requisitos["area_min"]:
+        return False
+    if (
+        requisitos.get("administracion_max") is not None
+        and propiedad.get("administracion") is not None
+        and propiedad["administracion"] > requisitos["administracion_max"]
+    ):
+        return False
+    return True
+
+
+def _calcular_score(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> float:
+    puntos = 0
+    total = 0
+
+    for campo in ["ubicacion", "tipo", "parqueadero"]:
+        if requisitos.get(campo) is not None:
+            total += 1
+            if str(propiedad.get(campo)).lower() == str(requisitos[campo]).lower():
+                puntos += 1
+
+    for campo in ["precio_max", "habitaciones", "banos", "area_min", "administracion_max"]:
+        if requisitos.get(campo) is not None:
+            total += 1
+            if _cumple_campo_numerico(propiedad, requisitos, campo):
+                puntos += 1
+
+    if total == 0:
+        return 1.0
+    return round(puntos / total, 3)
+
+
+def _cumple_campo_numerico(
+    propiedad: Mapping[str, Any],
+    requisitos: Mapping[str, Any],
+    campo: str,
+) -> bool:
+    if campo == "precio_max":
+        return propiedad["precio"] <= requisitos[campo]
+    if campo == "area_min":
+        return propiedad["area"] >= requisitos[campo]
+    if campo == "administracion_max":
+        return propiedad.get("administracion") is None or propiedad["administracion"] <= requisitos[campo]
+    return propiedad[campo] >= requisitos[campo]
+
+
+def _promedio(valores: list[float]) -> float | None:
+    if not valores:
+        return None
+    return round(sum(valores) / len(valores), 3)
+
+
+def _get(valor: Any, campo: str, default: Any = None) -> Any:
+    if isinstance(valor, Mapping):
+        return valor.get(campo, default)
+    return getattr(valor, campo, default)
+
+
+def _a_dict(valor: Any) -> dict[str, Any]:
+    if isinstance(valor, Mapping):
+        return dict(valor)
+    if hasattr(valor, "model_dump"):
+        return valor.model_dump(exclude_none=True)
+    if hasattr(valor, "dict"):
+        return valor.dict(exclude_none=True)
+    return {}

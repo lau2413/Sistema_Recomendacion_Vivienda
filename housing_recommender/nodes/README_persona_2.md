@@ -1,28 +1,26 @@
 # Persona 2 - Adquisicion de datos
 
-Esta parte queda desacoplada del grafo: cada nodo recibe `EstadoSistema` y
-devuelve un `dict` con unicamente los campos que modifica. Los nodos no deben
-presentar resultados finales ni decidir el flujo global del grafo.
+Esta parte queda desacoplada del grafo: cada nodo recibe `AgentState` o un
+`dict` equivalente y devuelve un `dict` con unicamente los campos que modifica.
+Los nodos no presentan resultados finales ni deciden el flujo global del grafo.
 
-## Nodos
+## Contrato con `state/models.py`
 
-- `ajustar_requisitos`: lee `texto_libre_usuario` y `criterios_actuales`.
-  Devuelve unicamente
-  `{"criterios_actuales": ...}`.
-- `coordinar_sintetizador`: lee `criterios_actuales` y define zonas de busqueda.
-  Devuelve unicamente `{"zonas_relevantes": ...}`.
-- `agente_noticias`: lee `criterios_actuales.ciudad` y `zonas_relevantes`.
-  Devuelve unicamente `{"contexto_noticias": ...}`.
-- `propiedades_scraping`: lee `criterios_actuales`. Devuelve
-  unicamente `{"propiedades_raw": ...}`.
+- `ajustar_requisitos`: lee `textoUsuario` y, si ya existe, `requisitos`.
+  Devuelve `{"requisitos": ...}` con forma compatible con `Requisito`.
+- `propiedades_scraping`: lee `requisitos`. Devuelve `{"propiedades": ...}`
+  con elementos compatibles con `Propiedad`.
+- `agente_noticias`: lee `propiedades` y opcionalmente `requisitos.ubicacion`.
+  Devuelve `{"noticias": ...}` con elementos compatibles con `Noticia`.
 
 ## Servicios mockeables
 
-- `services/requisitos_parser.py`: parser deterministico de preferencias desde
-  texto plano.
-- `services/noticias_client.py`: wrapper para contexto urbano/noticias.
-- `services/scraping_client.py`: wrapper para fuentes inmobiliarias. Expone
-  `buscar_propiedades` para uso real y `mock_propiedades` para pruebas.
+- `services/requisitos_parser.py`: parser deterministico desde `textoUsuario`.
+- `services/scraping_client.py`: wrapper de ofertas inmobiliarias. Por ahora
+  usa `MockScrapingClient`, pero se puede reemplazar por un scraper real sin
+  cambiar el nodo.
+- `services/noticias_client.py`: wrapper de noticias/contexto urbano. Por ahora
+  usa `MockNoticiasClient`, reemplazable por un cliente real.
 
 Los wrappers quedan fuera de los nodos para que se puedan reemplazar o
 monkeypatchear en pruebas sin cambiar la logica de LangGraph.
