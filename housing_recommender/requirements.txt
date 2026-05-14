@@ -1,0 +1,14 @@
+# Core LangGraph y LangChain
+langgraph>=0.0.20
+langchain>=0.1.0
+langchain-core>=0.1.0
+
+# Typing
+typing-extensions>=4.8.0
+
+# Utilidades
+pydantic>=2.0.0
+
+# Para visualización del grafo
+networkx>=3.0
+matplotlib>=3.7.0

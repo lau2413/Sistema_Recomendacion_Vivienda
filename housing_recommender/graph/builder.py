@@ -3,10 +3,8 @@ Constructor del grafo de estados del sistema de recomendación.
 Define la estructura del flujo de decisión usando LangGraph.
 """
 
-from typing import Dict, Any, Literal
+from typing import Dict, Any, Literal, TypedDict
 from langgraph.graph import StateGraph, END
-from typing_extensions import TypedDict
-
 
 class EstadoSistema(TypedDict):
     """Definición del estado compartido del sistema."""
