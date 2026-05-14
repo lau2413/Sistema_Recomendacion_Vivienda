@@ -49,7 +49,15 @@ def _extraer_precio_max(texto: str) -> float | None:
         valor = float(match.group(2).replace(",", "."))
         return valor * 1_000_000
 
-    match = re.search(r"\$?\s*(\d{7,12})", texto)
+    match = re.search(r"(maximo|max|hasta)\s*\$?\s*(\d{5,12})\s*(pesos|cop)?", texto)
+    if match:
+        return float(match.group(2))
+
+    match = re.search(r"\$\s*(\d{5,12})", texto)
+    if match:
+        return float(match.group(1))
+
+    match = re.search(r"(\d{5,12})\s*(pesos|cop)", texto)
     if match:
         return float(match.group(1))
 

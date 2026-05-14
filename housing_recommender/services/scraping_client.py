@@ -32,7 +32,7 @@ def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, An
         return False
     if requisitos.get("habitaciones") is not None and propiedad["habitaciones"] < requisitos["habitaciones"]:
         return False
-    if requisitos.get("banos") is not None and propiedad["banos"] < requisitos["banos"]:
+    if requisitos.get("baños") is not None and propiedad["baños"] < requisitos["baños"]:
         return False
     if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != requisitos["parqueadero"]:
         return False
@@ -53,7 +53,7 @@ def _propiedades_demo() -> list[dict[str, Any]]:
     return [
         {
             "ubicacion": "Norte",
-            "precio": 800000,
+            "precio": 800000000,
             "habitaciones": 3,
             "banos": 2,
             "parqueadero": True,
@@ -63,7 +63,7 @@ def _propiedades_demo() -> list[dict[str, Any]]:
         },
         {
             "ubicacion": "Sur",
-            "precio": 950000,
+            "precio": 950000000,
             "habitaciones": 4,
             "banos": 3,
             "parqueadero": True,
@@ -73,7 +73,7 @@ def _propiedades_demo() -> list[dict[str, Any]]:
         },
         {
             "ubicacion": "Centro",
-            "precio": 700000,
+            "precio": 700000000,
             "habitaciones": 2,
             "banos": 1,
             "parqueadero": False,
@@ -83,7 +83,7 @@ def _propiedades_demo() -> list[dict[str, Any]]:
         },
         {
             "ubicacion": "Norte",
-            "precio": 1100000,
+            "precio": 1100000000,
             "habitaciones": 4,
             "banos": 3,
             "parqueadero": True,
@@ -93,7 +93,7 @@ def _propiedades_demo() -> list[dict[str, Any]]:
         },
         {
             "ubicacion": "Sur",
-            "precio": 600000,
+            "precio": 600000000,
             "habitaciones": 2,
             "banos": 1,
             "parqueadero": False,

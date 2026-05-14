@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any, Mapping
 
+from housing_recommender.services.llm_client import generar_json_estructurado
 from housing_recommender.services.requisitos_parser import extraer_requisitos_desde_texto
+
+PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "ajustar_requisitos.txt"
 
 
 def ajustar_requisitos(estado: Any) -> dict[str, Any]:
@@ -12,9 +17,24 @@ def ajustar_requisitos(estado: Any) -> dict[str, Any]:
     texto_usuario = _get(estado, "textoUsuario", "")
 
     if texto_usuario:
-        requisitos.update(extraer_requisitos_desde_texto(str(texto_usuario)))
+        extraidos = _extraer_con_llm(str(texto_usuario), requisitos)
+        if extraidos is None:
+            extraidos = extraer_requisitos_desde_texto(str(texto_usuario))
+        requisitos.update(_sin_nulos(extraidos))
 
     return {"requisitos": requisitos}
+
+
+def _extraer_con_llm(texto_usuario: str, requisitos_previos: Mapping[str, Any]) -> dict[str, Any] | None:
+    prompt = PROMPT_PATH.read_text(encoding="utf-8").format(
+        texto_usuario=texto_usuario,
+        requisitos_previos=json.dumps(dict(requisitos_previos), ensure_ascii=False),
+    )
+    return generar_json_estructurado(prompt)
+
+
+def _sin_nulos(valores: Mapping[str, Any]) -> dict[str, Any]:
+    return {clave: valor for clave, valor in valores.items() if valor is not None}
 
 
 def _get(estado: Any, campo: str, default: Any = None) -> Any:
