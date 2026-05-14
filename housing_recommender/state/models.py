@@ -14,7 +14,7 @@ class Requisito(BaseModel):
     precio_max: Optional[float] = None
     habitaciones: Optional[int] = None
     banos: Optional[int] = None
-    parqueadero: Optional[bool] = None
+    parqueadero: Optional[int] = None
     tipo: Optional[Literal["apartamento", "casa", "apartaestudio"]] = None
     area_min: Optional[float] = None
     administracion_max: Optional[float] = None
@@ -26,7 +26,7 @@ class Propiedad(BaseModel):
     precio: float
     habitaciones: int
     banos: int
-    parqueadero: bool
+    parqueadero: int
     tipo: str
     area: float
     administracion: Optional[float] = None

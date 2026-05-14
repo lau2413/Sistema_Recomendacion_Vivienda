@@ -5,16 +5,18 @@ INSTRUCCIONES:
 2. Identifica los campos solicitados (lista más abajo).
 3. Si un campo NO se menciona explícitamente, déjalo como null. NO inventes valores.
 4. Para "tipo", clasifica como uno de: "apartamento", "casa", "apartaestudio". Si no es claro, usa null.
-5. Para "parqueadero", devuelve true si el usuario lo pide explícitamente, false si dice que NO lo necesita, y null si no lo menciona.
-6. Los precios deben estar en pesos colombianos (COP). Si el usuario dice "500 millones", convierte a 500000000.
-7. El área se expresa en metros cuadrados.
+5. Los precios deben estar en pesos colombianos (COP). Si el usuario dice "500 millones", convierte a 500000000.
+6. El área se expresa en metros cuadrados.
 
 CAMPOS A EXTRAER:
 - ubicacion: zona o barrio donde busca (string)
 - precio_max: presupuesto máximo en COP (número)
 - habitaciones: número de habitaciones deseadas (entero)
 - banos: número de baños deseados (entero)
-- parqueadero: si requiere parqueadero (booleano)
+- parqueadero: número de parqueaderos requeridos (entero). 
+  Si el usuario dice "con parqueadero" sin especificar cantidad, asume 1. 
+  Si dice "sin parqueadero" o "no necesito parqueadero", usa 0. 
+  Si no se menciona, usa null.
 - tipo: "apartamento" | "casa" | "apartaestudio"
 - area_min: área mínima en m² (número)
 - administracion_max: cuota máxima de administración en COP (número)
