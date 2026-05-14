@@ -1,0 +1,24 @@
+# Graph & Agents
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-anthropic>=0.2.0
+
+# LLM directo
+anthropic>=0.40.0
+openai>=1.50.0
+
+# State & Validation
+pydantic>=2.7.0
+
+# Scraping
+requests>=2.32.0
+httpx>=0.27.0
+beautifulsoup4>=4.12.0
+playwright>=1.47.0
+
+# Noticias
+feedparser>=6.0.0
+
+# Config & Env
+python-dotenv>=1.0.0
