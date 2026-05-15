@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from housing_recommender.state.models import Propuesta
+
 
 def construir_propuesta(estado: Any) -> dict[str, Any]:
     """Construye una propuesta compatible con el modelo Propuesta."""
@@ -26,15 +28,15 @@ def construir_propuesta(estado: Any) -> dict[str, Any]:
     )
 
     return {
-        "propuesta": {
-            "propiedades": propiedades_con_score[:3],
-            "score": score_global,
-        }
+        "propuesta": Propuesta(
+            propiedades=propiedades_con_score[:3],
+            score=score_global,
+        ).model_dump()
     }
 
 
 def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> bool:
-    if requisitos.get("ubicacion") and str(requisitos["ubicacion"]).lower() not in str(propiedad["ubicacion"]).lower():
+    if requisitos.get("ubicacion") and not _ubicacion_coincide(propiedad["ubicacion"], requisitos["ubicacion"]):
         return False
     if requisitos.get("precio_max") is not None and propiedad["precio"] > requisitos["precio_max"]:
         return False
@@ -42,7 +44,7 @@ def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, An
         return False
     if requisitos.get("banos") is not None and propiedad["banos"] < requisitos["banos"]:
         return False
-    if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != requisitos["parqueadero"]:
+    if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != int(bool(requisitos["parqueadero"])):
         return False
     if requisitos.get("tipo") and propiedad["tipo"] != requisitos["tipo"]:
         return False
@@ -64,7 +66,7 @@ def _calcular_score(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any])
     for campo in ["ubicacion", "tipo", "parqueadero"]:
         if requisitos.get(campo) is not None:
             total += 1
-            if str(propiedad.get(campo)).lower() == str(requisitos[campo]).lower():
+            if _normalizar_comparable(propiedad.get(campo)) == _normalizar_comparable(requisitos[campo]):
                 puntos += 1
 
     for campo in ["precio_max", "habitaciones", "banos", "area_min", "administracion_max"]:
@@ -90,6 +92,31 @@ def _cumple_campo_numerico(
     if campo == "administracion_max":
         return propiedad.get("administracion") is None or propiedad["administracion"] <= requisitos[campo]
     return propiedad[campo] >= requisitos[campo]
+
+
+def _normalizar_comparable(valor: Any) -> str:
+    if isinstance(valor, bool):
+        return str(int(valor))
+    if isinstance(valor, int | float) and valor in (0, 1):
+        return str(int(valor))
+    return str(valor).lower()
+
+
+def _ubicacion_coincide(ubicacion_propiedad: Any, ubicacion_requisito: Any) -> bool:
+    propiedad = str(ubicacion_propiedad).lower()
+    requisito = str(ubicacion_requisito).lower()
+    equivalencias = {
+        "sur": {"envigado", "sabaneta"},
+        "norte": {"robledo"},
+        "occidente": {"laureles", "belen", "robledo"},
+        "centro": {"centro"},
+        "poblado": {"el poblado"},
+    }
+
+    if requisito in propiedad:
+        return True
+
+    return propiedad in equivalencias.get(requisito, set())
 
 
 def _promedio(valores: list[float]) -> float | None:

@@ -10,10 +10,11 @@ class ScrapingClient(Protocol):
 
 class MockScrapingClient:
     def buscar(self, requisitos: Mapping[str, Any]) -> list[dict[str, Any]]:
+        requisitos_normalizados = _normalizar_requisitos(requisitos)
         return [
             propiedad
             for propiedad in _propiedades_demo()
-            if _cumple_requisitos(propiedad, requisitos)
+            if _cumple_requisitos(propiedad, requisitos_normalizados)
         ]
 
 
@@ -22,17 +23,17 @@ def obtener_propiedades(
     client: ScrapingClient | None = None,
 ) -> list[dict[str, Any]]:
     proveedor = client or MockScrapingClient()
-    return proveedor.buscar(requisitos)
+    return [_normalizar_propiedad(propiedad) for propiedad in proveedor.buscar(requisitos)]
 
 
 def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> bool:
-    if requisitos.get("ubicacion") and str(requisitos["ubicacion"]).lower() not in str(propiedad["ubicacion"]).lower():
+    if requisitos.get("ubicacion") and not _ubicacion_coincide(propiedad["ubicacion"], requisitos["ubicacion"]):
         return False
     if requisitos.get("precio_max") is not None and propiedad["precio"] > requisitos["precio_max"]:
         return False
     if requisitos.get("habitaciones") is not None and propiedad["habitaciones"] < requisitos["habitaciones"]:
         return False
-    if requisitos.get("baños") is not None and propiedad["baños"] < requisitos["baños"]:
+    if requisitos.get("banos") is not None and propiedad["banos"] < requisitos["banos"]:
         return False
     if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != requisitos["parqueadero"]:
         return False
@@ -49,56 +50,123 @@ def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, An
     return True
 
 
+def _ubicacion_coincide(ubicacion_propiedad: Any, ubicacion_requisito: Any) -> bool:
+    propiedad = str(ubicacion_propiedad).lower()
+    requisito = str(ubicacion_requisito).lower()
+    equivalencias = {
+        "sur": {"envigado", "sabaneta"},
+        "norte": {"robledo"},
+        "occidente": {"laureles", "belen", "robledo"},
+        "centro": {"centro"},
+        "poblado": {"el poblado"},
+    }
+
+    if requisito in propiedad:
+        return True
+
+    return propiedad in equivalencias.get(requisito, set())
+
+
+def _normalizar_requisitos(requisitos: Mapping[str, Any]) -> dict[str, Any]:
+    normalizados = dict(requisitos)
+
+    if "baños" in normalizados and "banos" not in normalizados:
+        normalizados["banos"] = normalizados.pop("baños")
+    if "baÃ±os" in normalizados and "banos" not in normalizados:
+        normalizados["banos"] = normalizados.pop("baÃ±os")
+
+    if normalizados.get("parqueadero") is not None:
+        normalizados["parqueadero"] = int(bool(normalizados["parqueadero"]))
+
+    return {clave: valor for clave, valor in normalizados.items() if valor is not None}
+
+
+def _normalizar_propiedad(propiedad: Mapping[str, Any]) -> dict[str, Any]:
+    normalizada = dict(propiedad)
+    normalizada["parqueadero"] = int(bool(normalizada.get("parqueadero", 0)))
+    return normalizada
+
+
 def _propiedades_demo() -> list[dict[str, Any]]:
     return [
         {
-            "ubicacion": "Norte",
-            "precio": 800000000,
+            "ubicacion": "El Poblado",
+            "precio": 760000000,
             "habitaciones": 3,
             "banos": 2,
-            "parqueadero": True,
+            "parqueadero": 1,
             "tipo": "apartamento",
-            "area": 90,
-            "administracion": 120000,
+            "area": 92,
+            "administracion": 420000,
         },
         {
-            "ubicacion": "Sur",
-            "precio": 950000000,
+            "ubicacion": "Laureles",
+            "precio": 590000000,
+            "habitaciones": 3,
+            "banos": 2,
+            "parqueadero": 1,
+            "tipo": "apartamento",
+            "area": 84,
+            "administracion": 310000,
+        },
+        {
+            "ubicacion": "Envigado",
+            "precio": 680000000,
             "habitaciones": 4,
             "banos": 3,
-            "parqueadero": True,
+            "parqueadero": 1,
             "tipo": "casa",
-            "area": 110,
+            "area": 118,
             "administracion": None,
+        },
+        {
+            "ubicacion": "Belen",
+            "precio": 410000000,
+            "habitaciones": 2,
+            "banos": 1,
+            "parqueadero": 0,
+            "tipo": "apartamento",
+            "area": 68,
+            "administracion": 180000,
+        },
+        {
+            "ubicacion": "Sabaneta",
+            "precio": 360000000,
+            "habitaciones": 2,
+            "banos": 2,
+            "parqueadero": 1,
+            "tipo": "apartamento",
+            "area": 63,
+            "administracion": 220000,
         },
         {
             "ubicacion": "Centro",
-            "precio": 700000000,
+            "precio": 285000000,
             "habitaciones": 2,
             "banos": 1,
-            "parqueadero": False,
+            "parqueadero": 0,
             "tipo": "apartamento",
-            "area": 75,
-            "administracion": 90000,
+            "area": 58,
+            "administracion": 120000,
         },
         {
-            "ubicacion": "Norte",
-            "precio": 1100000000,
+            "ubicacion": "El Poblado",
+            "precio": 980000000,
             "habitaciones": 4,
             "banos": 3,
-            "parqueadero": True,
+            "parqueadero": 1,
             "tipo": "casa",
-            "area": 130,
+            "area": 135,
             "administracion": None,
         },
         {
-            "ubicacion": "Sur",
-            "precio": 600000000,
+            "ubicacion": "Robledo",
+            "precio": 320000000,
             "habitaciones": 2,
             "banos": 1,
-            "parqueadero": False,
+            "parqueadero": 0,
             "tipo": "apartamento",
-            "area": 60,
-            "administracion": 80000,
+            "area": 64,
+            "administracion": 95000,
         },
     ]

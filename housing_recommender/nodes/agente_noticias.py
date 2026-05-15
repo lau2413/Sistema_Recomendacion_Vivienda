@@ -3,13 +3,17 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from housing_recommender.services.noticias_client import obtener_noticias
+from housing_recommender.state.models import Noticia
 
 
 def agente_noticias(estado: Any) -> dict[str, Any]:
     """Nodo Persona 2: consulta contexto y escribe solo noticias."""
 
     ubicaciones = _obtener_ubicaciones(estado)
-    noticias = obtener_noticias(ubicaciones)
+    noticias = [
+        Noticia(**noticia).model_dump()
+        for noticia in obtener_noticias(ubicaciones)
+    ]
     return {"noticias": noticias}
 
 
