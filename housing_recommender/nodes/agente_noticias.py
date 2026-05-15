@@ -10,11 +10,15 @@ def agente_noticias(estado: Any) -> dict[str, Any]:
     """Nodo Persona 2: consulta contexto y escribe solo noticias."""
 
     ubicaciones = _obtener_ubicaciones(estado)
+    noticias_crudas, diagnostico = obtener_noticias(
+        ubicaciones,
+        incluir_diagnostico=True,
+    )
     noticias = [
         Noticia(**noticia).model_dump()
-        for noticia in obtener_noticias(ubicaciones)
+        for noticia in noticias_crudas
     ]
-    return {"noticias": noticias}
+    return {"noticias": noticias, "diagnostico_noticias": diagnostico}
 
 
 def _obtener_ubicaciones(estado: Any) -> list[str]:

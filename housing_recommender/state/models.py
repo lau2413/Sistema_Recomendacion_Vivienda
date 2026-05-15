@@ -1,5 +1,5 @@
 # state/models.py
-from typing import Optional, Literal, Annotated
+from typing import Any, Optional, Literal, Annotated
 from pydantic import BaseModel, Field
 from operator import add
 
@@ -30,6 +30,8 @@ class Propiedad(BaseModel):
     tipo: str
     area: float
     administracion: Optional[float] = None
+    fuente: Optional[str] = None
+    url: Optional[str] = None
     score: Optional[float] = Field(
         default=None,
         description="Qué tanto cumple esta propiedad los requisitos. La asigna el evaluador."
@@ -41,6 +43,11 @@ class Noticia(BaseModel):
     fuente: str
     texto: str
     resumen: str
+    ubicacion: Optional[str] = None
+    impacto_score: Optional[float] = Field(
+        default=None,
+        description="Ajuste sugerido al score de propiedades en esta zona."
+    )
 
 
 class Propuesta(BaseModel):
@@ -66,6 +73,7 @@ class AgentState(BaseModel):
     requisitos: Optional[Requisito] = None
     propiedades: Optional[list[Propiedad]] = None
     noticias: Optional[list[Noticia]] = None
+    diagnostico_noticias: Optional[dict[str, Any]] = None
     propuesta: Optional[Propuesta] = None
 
     # Control del ciclo de relajación (mínimo necesario)

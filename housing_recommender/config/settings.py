@@ -17,6 +17,14 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
 
+    # Fuentes externas
+    scraping_provider: Literal["mock", "fincaraiz", "metrocuadrado", "ciencuadras", "mixto"] = "mock"
+    finca_raiz_max_resultados: int = 8
+    finca_raiz_timeout_ms: int = 30000
+    news_provider: Literal["mock", "google_rss", "newsapi", "mixto"] = "mock"
+    news_api_key: str = ""
+    news_max_resultados: int = 8
+
     # Otros
     max_iteraciones_relajacion: int = 3
     score_minimo_aceptable: float = 7.0

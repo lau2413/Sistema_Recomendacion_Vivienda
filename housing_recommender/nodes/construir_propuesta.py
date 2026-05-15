@@ -10,6 +10,7 @@ def construir_propuesta(estado: Any) -> dict[str, Any]:
 
     requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
     propiedades = [_a_dict(propiedad) for propiedad in (_get(estado, "propiedades", []) or [])]
+    noticias = [_a_dict(noticia) for noticia in (_get(estado, "noticias", []) or [])]
 
     candidatas = [
         propiedad
@@ -18,7 +19,7 @@ def construir_propuesta(estado: Any) -> dict[str, Any]:
     ]
 
     propiedades_con_score = [
-        {**propiedad, "score": _calcular_score(propiedad, requisitos)}
+        {**propiedad, "score": _calcular_score(propiedad, requisitos, noticias)}
         for propiedad in candidatas
     ]
     propiedades_con_score.sort(key=lambda propiedad: propiedad["score"], reverse=True)
@@ -44,7 +45,7 @@ def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, An
         return False
     if requisitos.get("banos") is not None and propiedad["banos"] < requisitos["banos"]:
         return False
-    if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] != int(bool(requisitos["parqueadero"])):
+    if requisitos.get("parqueadero") is not None and propiedad["parqueadero"] < int(requisitos["parqueadero"]):
         return False
     if requisitos.get("tipo") and propiedad["tipo"] != requisitos["tipo"]:
         return False
@@ -59,25 +60,44 @@ def _cumple_requisitos(propiedad: Mapping[str, Any], requisitos: Mapping[str, An
     return True
 
 
-def _calcular_score(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> float:
+def _calcular_score(
+    propiedad: Mapping[str, Any],
+    requisitos: Mapping[str, Any],
+    noticias: list[Mapping[str, Any]] | None = None,
+) -> float:
     puntos = 0
     total = 0
 
-    for campo in ["ubicacion", "tipo", "parqueadero"]:
+    for campo in ["ubicacion", "tipo"]:
         if requisitos.get(campo) is not None:
             total += 1
             if _normalizar_comparable(propiedad.get(campo)) == _normalizar_comparable(requisitos[campo]):
                 puntos += 1
 
-    for campo in ["precio_max", "habitaciones", "banos", "area_min", "administracion_max"]:
+    for campo in ["precio_max", "habitaciones", "banos", "parqueadero", "area_min", "administracion_max"]:
         if requisitos.get(campo) is not None:
             total += 1
             if _cumple_campo_numerico(propiedad, requisitos, campo):
                 puntos += 1
 
-    if total == 0:
-        return 1.0
-    return round(puntos / total, 3)
+    base = 1.0 if total == 0 else puntos / total
+    ajuste_noticias = _ajuste_por_noticias(propiedad, noticias or [])
+    return round(max(0.0, min(1.0, base + ajuste_noticias)), 3)
+
+
+def _ajuste_por_noticias(
+    propiedad: Mapping[str, Any],
+    noticias: list[Mapping[str, Any]],
+) -> float:
+    ubicacion = propiedad.get("ubicacion")
+    impactos = [
+        float(noticia.get("impacto_score") or 0)
+        for noticia in noticias
+        if _ubicacion_coincide(ubicacion, noticia.get("ubicacion"))
+    ]
+    if not impactos:
+        return 0.0
+    return max(-0.1, min(0.1, sum(impactos) / len(impactos)))
 
 
 def _cumple_campo_numerico(
