@@ -4,15 +4,18 @@ Demuestra el comportamiento del sistema bajo distintos escenarios.
 """
 
 import sys
-sys.path.append('..')
+import os
 
-from main import ejecutar_sistema
+# Agregar el directorio padre al path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from housing_recommender.main import ejecutar_sistema
 
 
 def ejemplo_caso_ideal():
     """Caso donde los criterios iniciales encuentran resultados."""
     print("\n" + "="*80)
-    print("EJEMPLO 1: Caso ideal - Criterios alcanzables")
+    print("--EJEMPLO 1: Caso ideal - Criterios alcanzables--")
     print("="*80)
     
     criterios = {
@@ -30,32 +33,14 @@ def ejemplo_caso_ideal():
 def ejemplo_caso_restrictivo():
     """Caso con criterios muy restrictivos que requieren relajación."""
     print("\n" + "="*80)
-    print("EJEMPLO 2: Criterios restrictivos - Requiere relajación")
+    print("--EJEMPLO 2: Criterios restrictivos - Requiere relajación--")
     print("="*80)
     
     criterios = {
         'precio_max': 150_000_000,
         'area_min': 120,
         'habitaciones_min': 4,
-        'tipo': 'casa',
-        'zonas_preferidas': ['El Poblado']
-    }
-    
-    resultado = ejecutar_sistema(criterios)
-    return resultado
-
-
-def ejemplo_caso_imposible():
-    """Caso prácticamente imposible para demostrar límites."""
-    print("\n" + "="*80)
-    print("EJEMPLO 3: Criterios imposibles - Alcanza límite de iteraciones")
-    print("="*80)
-    
-    criterios = {
-        'precio_max': 50_000_000,
-        'area_min': 200,
-        'habitaciones_min': 5,
-        'tipo': 'casa',
+        'tipo': 'apartamento',
         'zonas_preferidas': ['El Poblado']
     }
     
@@ -66,7 +51,7 @@ def ejemplo_caso_imposible():
 def ejemplo_presupuesto_medio():
     """Caso con presupuesto medio y criterios balanceados."""
     print("\n" + "="*80)
-    print("EJEMPLO 4: Presupuesto medio - Búsqueda balanceada")
+    print("--EJEMPLO 3: Presupuesto medio - Búsqueda balanceada--")
     print("="*80)
     
     criterios = {
@@ -91,7 +76,6 @@ def ejecutar_todos_ejemplos():
         ("Caso Ideal", ejemplo_caso_ideal),
         ("Caso Restrictivo", ejemplo_caso_restrictivo),
         ("Presupuesto Medio", ejemplo_presupuesto_medio),
-        ("Caso Imposible", ejemplo_caso_imposible),
     ]
     
     resultados = {}
@@ -103,6 +87,8 @@ def ejecutar_todos_ejemplos():
             input("\nPresiona Enter para continuar con el siguiente ejemplo...")
         except Exception as e:
             print(f"\nError en {nombre}: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Resumen comparativo
     print("\n" + "#"*80)
