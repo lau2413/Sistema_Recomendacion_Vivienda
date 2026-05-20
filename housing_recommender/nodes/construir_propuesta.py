@@ -34,6 +34,7 @@ def construir_propuesta(estado: Any) -> dict[str, Any]:
     )
 
     return {
+        "propiedades_filtradas": candidatas,
         "propuesta": Propuesta(
             propiedades=propiedades_con_score[:3],
             score=score_global,

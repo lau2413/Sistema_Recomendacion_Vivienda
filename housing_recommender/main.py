@@ -43,6 +43,7 @@ def ejecutar_sistema(criterios_usuario: dict[str, Any] | str):
         "iteracion": 0,
         "max_iteraciones": 3,
         "relajacion_completa": False,
+        "nivel_relajacion_aplicado": 0.0,
         "diagnostico": "",
         "mensaje_relajacion": "",
         "recomendaciones_finales": [],

@@ -107,6 +107,7 @@ class AgentState(BaseModel):
     diagnostico: Optional[str] = None
     mensaje_relajacion: Optional[str] = None
     relajacion_completa: bool = False
+    nivel_relajacion_aplicado: float = 0.0
 
     # Resultados finales formateados para el usuario
     recomendaciones_finales: list[str] = Field(default_factory=list)

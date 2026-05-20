@@ -31,6 +31,7 @@ def generar_recomendaciones(estado: Any) -> tuple[list[str], list[str]]:
     evaluacion = _a_dict(_get(estado, "evaluacion", {}) or {})
     diagnostico = _get(estado, "diagnostico")
     diagnostico_noticias = _get(estado, "diagnostico_noticias")
+    nivel_relajacion = float(_get(estado, "nivel_relajacion_aplicado", 0.0) or 0.0)
 
     propiedades = [_a_dict(prop) for prop in (propuesta.get("propiedades") or [])]
     recomendaciones = [
@@ -43,6 +44,7 @@ def generar_recomendaciones(estado: Any) -> tuple[list[str], list[str]]:
         _resumen_requisitos("Requisitos usados", requisitos),
         _resumen_evaluacion(evaluacion),
         _resumen_historial(historial),
+        f"Nivel de relajacion aplicado: {nivel_relajacion:.1%}.",
         _resumen_noticias(noticias),
     ]
 

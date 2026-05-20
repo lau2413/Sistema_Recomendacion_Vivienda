@@ -56,6 +56,10 @@ class AgenteRelajacion:
         entrada = EntradaRelajacion(iteracion=nueva_iteracion, **cambio).model_dump()
         historial.append(entrada)
         mensaje = f"Requisito relajado: {entrada['descripcion']}"
+        nivel_relajacion = _calcular_nivel_relajacion(
+            _a_dict(_get(estado, "requisitos_originales", {}) or {}),
+            requisitos,
+        )
 
         return {
             "requisitos": requisitos,
@@ -63,6 +67,7 @@ class AgenteRelajacion:
             "iteracion": nueva_iteracion,
             "mensaje_relajacion": mensaje,
             "relajacion_completa": nueva_iteracion >= max_iteraciones,
+            "nivel_relajacion_aplicado": nivel_relajacion,
             "diagnostico": _combinar_diagnosticos(_get(estado, "diagnostico"), mensaje),
         }
 
@@ -151,6 +156,25 @@ def _a_dict(valor: Any) -> dict[str, Any]:
     if hasattr(valor, "dict"):
         return valor.dict(exclude_none=True)
     return {}
+
+
+def _calcular_nivel_relajacion(originales: Mapping[str, Any], actuales: Mapping[str, Any]) -> float:
+    if not originales:
+        return 0.0
+
+    cambios = []
+    if originales.get("precio_max") and actuales.get("precio_max"):
+        cambios.append(abs(float(actuales["precio_max"]) - float(originales["precio_max"])) / float(originales["precio_max"]))
+    if originales.get("area_min") and actuales.get("area_min"):
+        cambios.append(abs(float(originales["area_min"]) - float(actuales["area_min"])) / float(originales["area_min"]))
+    if originales.get("habitaciones") and actuales.get("habitaciones"):
+        cambios.append(abs(int(originales["habitaciones"]) - int(actuales["habitaciones"])) / max(1, int(originales["habitaciones"])))
+    if originales.get("ubicacion") and not actuales.get("ubicacion"):
+        cambios.append(1.0)
+    if originales.get("tipo") and not actuales.get("tipo"):
+        cambios.append(1.0)
+
+    return round(sum(cambios) / len(cambios), 3) if cambios else 0.0
 
 
 def _combinar_diagnosticos(actual: Any, nuevo: str) -> str:
