@@ -1,10 +1,10 @@
-# Sistema de recomendacion inteligente de vivienda
+# Sistema de recomendación inteligente de vivienda 🏠
 
 Este proyecto implementa un sistema inteligente para recomendar opciones de vivienda a familias dentro de una ciudad a partir de preferencias iniciales, que pueden ser explicitas o derivadas desde texto libre. El sistema integra criterios del usuario, contexto de zonas, señales externas como noticias o informacion urbana, y fuentes de oferta inmobiliaria.
 
 La decision de diseño principal es no construir un único agente autónomo que controle todo. En su lugar, el sistema usa un grafo de estados con etapas claras, estado compartido, transiciones condicionales y ciclos controlados de reintento. Esto mejora la interpretabilidad: se puede ver qué nodo produjo cada dato, porqué una propuesta fue rechazada y qué requisito se relajó.
 
-## Estado actual de cumplimiento
+## Estado actual de cumplimiento 🫡
 
 El proyecto cumple el patrón requerido mediante `LangGraph` en `housing_recommender/graph/builder.py`. El flujo no es lineal: después de evaluar la propuesta, el grafo puede presentar resultados o activar relajación y volver a buscar.
 
@@ -18,7 +18,7 @@ Componentes cubiertos:
 - **Iteración bajo incertidumbre:** `agente_relajacion` modifica requisitos gradualmente y registra historial.
 - **Salida explicada:** `presentar_resultado` genera recomendaciones, explicaciones, score, diagnóstico y cambios aplicados.
 
-## Arquitectura
+## Arquitectura 𖠿
 
 El sistema esta organizado por responsabilidades:
 
@@ -30,7 +30,7 @@ El sistema esta organizado por responsabilidades:
 - `housing_recommender/services/`: clientes de LLM, scraping, noticias y parser local.
 - `housing_recommender/main.py`: punto de entrada de ejecución.
 
-## Definición del estado
+## Definición del estado ᯤ
 
 El estado compartido es `AgentState`. Captura la evolución completa del proceso:
 
@@ -56,7 +56,7 @@ El estado compartido es `AgentState`. Captura la evolución completa del proceso
 
 La separación entre `requisitos_originales` y `requisitos` permite explicar qué se pidió inicialmente y qué condiciones fueron necesarias para encontrar alternativas.
 
-## Diagrama del grafo
+## Diagrama del grafo 👾
 
 ```mermaid
 flowchart TD
@@ -73,7 +73,7 @@ flowchart TD
     G --> I["END"]
 ```
 
-## Actividades e implementación
+## Actividades e implementación 🛠️
 
 `ajustar_requisitos`
 
@@ -107,7 +107,7 @@ Modifica gradualmente `requisitos` cuando la evaluación no es aceptable. No cam
 
 Genera la salida final: alternativas, explicaciones, score de evaluación, noticias/contexto, diagnóstico y cambios hechos a las condiciones iniciales.
 
-## Logica de decision e iteracion
+## Logica de decisión e iteración 💡
 
 La decisión principal ocurre después de `evaluador`:
 
@@ -117,7 +117,7 @@ La decisión principal ocurre después de `evaluador`:
 
 Después de relajar, el grafo vuelve a `zonas_contexto`, repite búsqueda, noticias, propuesta y evaluación. Esto implementa un ciclo controlado de reintentos.
 
-## Estrategia de relajación
+## Estrategia de relajación ⚡
 
 La relajación está en `housing_recommender/nodes/agente_relajacion.py`.
 
@@ -139,7 +139,7 @@ El agente evita cambios bruscos porque aplica un cambio principal por iteración
 
 El sistema se detiene al encontrar una propuesta aceptable o al alcanzar `max_iteraciones`.
 
-## Evaluación final
+## Evaluación final 💻
 
 El componente `evaluador` actúa antes de presentar resultados. Su salida incluye:
 
@@ -150,7 +150,7 @@ El componente `evaluador` actúa antes de presentar resultados. Su salida incluy
 
 Si la propuesta no es coherente o no satisface suficientemente los requisitos, solicita una nueva iteración mediante la transición condicional del grafo.
 
-## Ejemplo de ejecución
+## Ejemplo de ejecución 👨🏻‍💻
 
 Desde la raíz del proyecto:
 
@@ -197,7 +197,7 @@ RECOMENDACIONES:
 
 Si no se encuentra una propuesta aceptable, la salida no falla silenciosamente: muestra el diagnóstico, las relajaciones intentadas y el motivo de rechazo.
 
-## Configuración
+## Configuración 🔧
 
 Las opciones principales estan en `housing_recommender/config/settings.py`.
 
@@ -212,7 +212,7 @@ Variables relevantes:
 
 Para ejecuciones reproducibles sin credenciales, el proyecto funciona con proveedores `mock`.
 
-## Instalación y pruebas básicas
+## Instalación y pruebas básicas 💻⚙️
 
 ```powershell
 python -m venv .venv
@@ -223,7 +223,7 @@ python -m housing_recommender.main
 python prueba_persona2.py
 ```
 
-## Reflexión crítica
+## Reflexión crítica 🤔
 
 El diseño basado en grafo hace que el sistema sea mas interpretable que un agente autónomo único. Cada etapa consume y produce campos claros del estado, por lo que se puede inspeccionar donde se perdieron resultados: interpretación, zonas, scraping, filtrado, propuesta o evaluación.
 
