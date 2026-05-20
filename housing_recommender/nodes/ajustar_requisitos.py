@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Mapping
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from housing_recommender.services.llm_client import generar_json_estructurado
 from housing_recommender.services.requisitos_parser import extraer_requisitos_desde_texto
@@ -11,7 +15,7 @@ PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "ajustar_requisi
 
 
 def ajustar_requisitos(estado: Any) -> dict[str, Any]:
-    """Nodo Persona 2: interpreta textoUsuario y escribe solo requisitos."""
+    """Interpreta textoUsuario y mantiene una copia inmutable de requisitos."""
 
     requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
     texto_usuario = _get(estado, "textoUsuario", "")
@@ -22,7 +26,10 @@ def ajustar_requisitos(estado: Any) -> dict[str, Any]:
             extraidos = extraer_requisitos_desde_texto(str(texto_usuario))
         requisitos.update(_sin_nulos(extraidos))
 
-    return {"requisitos": requisitos}
+    cambios: dict[str, Any] = {"requisitos": requisitos}
+    if _get(estado, "requisitos_originales") is None:
+        cambios["requisitos_originales"] = dict(requisitos)
+    return cambios
 
 
 def _extraer_con_llm(texto_usuario: str, requisitos_previos: Mapping[str, Any]) -> dict[str, Any] | None:

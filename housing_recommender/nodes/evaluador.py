@@ -1,258 +1,214 @@
-"""
-Módulo de evaluación de resultados.
-Evalúa si las propiedades encontradas cumplen con los criterios
-y determina si se necesitan relajar las condiciones.
-"""
+"""Nodo evaluador de la propuesta inmobiliaria."""
 
-from typing import Dict, List, Any
-from dataclasses import dataclass
+from __future__ import annotations
 
+import sys
+from pathlib import Path
+from typing import Any, Mapping
 
-@dataclass
-class EvaluacionResultado:
-    """Resultado de la evaluación de propiedades."""
-    es_aceptable: bool
-    score: float
-    razon: str
-    recomendaciones: List[str]
-    metricas: Dict[str, float]
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from housing_recommender.state.models import Evaluacion
 
 
 class EvaluadorResultados:
-    """
-    Evalúa la calidad de los resultados de búsqueda.
-    Determina si se debe continuar con relajación o presentar resultados.
-    """
-    
-    def __init__(self, min_propiedades: int = 3, score_minimo: float = 0.6):
+    """Evalua propuesta, propiedades disponibles y requisitos actuales."""
+
+    def __init__(self, min_propiedades: int = 1, score_minimo: float = 0.6) -> None:
         self.min_propiedades = min_propiedades
         self.score_minimo = score_minimo
-    
-    def evaluar(self, state: Dict[str, Any]) -> EvaluacionResultado:
-        """
-        Evalúa los resultados actuales del estado.
-        
-        Args:
-            state: Estado actual del sistema con propiedades encontradas
-            
-        Returns:
-            EvaluacionResultado con la decisión de aceptación
-        """
-        propiedades = state.get('propiedades_filtradas', [])
-        criterios_actuales = state.get('criterios_actuales', {})
-        criterios_originales = state.get('criterios_originales', {})
-        
-        # Verificar cantidad mínima
-        cantidad_suficiente = len(propiedades) >= self.min_propiedades
-        
+
+    def evaluar(self, estado: Any) -> dict[str, Any]:
+        self._diagnostico_actual = _get(estado, "diagnostico")
+        propuesta = _a_dict(_get(estado, "propuesta", {}) or {})
+        requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
+        propiedades = [_a_dict(prop) for prop in (_get(estado, "propiedades", []) or [])]
+        propiedades_propuesta = [
+            _a_dict(prop) for prop in (propuesta.get("propiedades") or [])
+        ]
+
         if not propiedades:
-            return EvaluacionResultado(
+            return self._resultado(
                 es_aceptable=False,
                 score=0.0,
-                razon="No se encontraron propiedades que cumplan los criterios",
-                recomendaciones=["Relajar restricciones de precio o área"],
-                metricas={'cantidad': 0, 'cumplimiento_promedio': 0.0}
+                razon="No se encontraron propiedades para evaluar.",
+                recomendacion="precio_max",
+                diagnostico="Fallo de busqueda: el scraper no devolvio propiedades.",
             )
-        
-        # Calcular score de cumplimiento para cada propiedad
-        scores_propiedades = []
-        for prop in propiedades:
-            score_prop = self._calcular_score_propiedad(prop, criterios_actuales)
-            scores_propiedades.append(score_prop)
-        
-        score_promedio = sum(scores_propiedades) / len(scores_propiedades)
-        
-        # Calcular nivel de relajación aplicado
-        nivel_relajacion = self._calcular_nivel_relajacion(
-            criterios_originales, 
-            criterios_actuales
-        )
-        
-        # Decisión de aceptabilidad
-        es_aceptable = (
-            cantidad_suficiente and 
-            score_promedio >= self.score_minimo
-        )
-        
-        # Generar razón y recomendaciones
+
+        if not propiedades_propuesta:
+            recomendacion = self._recomendar_relajacion(propiedades, requisitos)
+            return self._resultado(
+                es_aceptable=False,
+                score=0.0,
+                razon=(
+                    "Hay propiedades disponibles, pero ninguna cumple los requisitos "
+                    "actuales para construir una propuesta."
+                ),
+                recomendacion=recomendacion,
+                diagnostico=(
+                    "Fallo de propuesta: construir_propuesta no encontro candidatas "
+                    "compatibles con requisitos."
+                ),
+            )
+
+        scores = [
+            _score_propiedad(propiedad, requisitos)
+            for propiedad in propiedades_propuesta
+        ]
+        score_promedio = _promedio(scores)
+        score_propuesta = propuesta.get("score")
+        if score_propuesta is not None:
+            score_promedio = float(score_propuesta)
+
+        cantidad_suficiente = len(propiedades_propuesta) >= self.min_propiedades
+        es_aceptable = cantidad_suficiente and score_promedio >= self.score_minimo
+        recomendacion = None if es_aceptable else self._recomendar_relajacion(propiedades, requisitos)
+
         if es_aceptable:
             razon = (
-                f"Se encontraron {len(propiedades)} propiedades con un "
-                f"score promedio de {score_promedio:.2f}. "
-                f"Nivel de relajación: {nivel_relajacion:.1%}"
+                f"Propuesta aceptable con {len(propiedades_propuesta)} propiedades "
+                f"y score promedio de {score_promedio:.2f}."
             )
-            recomendaciones = []
+            diagnostico = "Evaluacion exitosa: la propuesta supera los umbrales definidos."
+        elif not cantidad_suficiente:
+            razon = (
+                f"La propuesta tiene {len(propiedades_propuesta)} propiedades; "
+                f"se requieren al menos {self.min_propiedades}."
+            )
+            diagnostico = "Fallo de evaluacion: cantidad insuficiente en la propuesta."
         else:
-            razon = self._generar_razon_rechazo(
-                len(propiedades), 
-                score_promedio, 
-                cantidad_suficiente
+            razon = (
+                f"El score de la propuesta ({score_promedio:.2f}) esta por debajo "
+                f"del minimo aceptable ({self.score_minimo:.2f})."
             )
-            recomendaciones = self._generar_recomendaciones(
-                propiedades, 
-                criterios_actuales
-            )
-        
-        return EvaluacionResultado(
+            diagnostico = "Fallo de evaluacion: score insuficiente."
+
+        return self._resultado(
             es_aceptable=es_aceptable,
             score=score_promedio,
             razon=razon,
-            recomendaciones=recomendaciones,
-            metricas={
-                'cantidad': len(propiedades),
-                'cumplimiento_promedio': score_promedio,
-                'nivel_relajacion': nivel_relajacion,
-                'score_mejor_propiedad': max(scores_propiedades) if scores_propiedades else 0,
-                'score_peor_propiedad': min(scores_propiedades) if scores_propiedades else 0
-            }
+            recomendacion=recomendacion,
+            diagnostico=diagnostico,
         )
-    
-    def _calcular_score_propiedad(
-        self, 
-        propiedad: Dict[str, Any], 
-        criterios: Dict[str, Any]
-    ) -> float:
-        """Calcula score de cumplimiento de una propiedad."""
-        puntos = 0
-        total = 0
-        
-        # Evaluar precio
-        if 'precio_max' in criterios and 'precio' in propiedad:
-            total += 1
-            if propiedad['precio'] <= criterios['precio_max']:
-                puntos += 1
-            else:
-                # Penalización proporcional si se excede
-                exceso = (propiedad['precio'] - criterios['precio_max']) / criterios['precio_max']
-                puntos += max(0, 1 - exceso)
-        
-        # Evaluar área
-        if 'area_min' in criterios and 'area' in propiedad:
-            total += 1
-            if propiedad['area'] >= criterios['area_min']:
-                puntos += 1
-            else:
-                # Penalización proporcional si es menor
-                deficit = (criterios['area_min'] - propiedad['area']) / criterios['area_min']
-                puntos += max(0, 1 - deficit)
-        
-        # Evaluar tipo de inmueble
-        if 'tipo' in criterios and 'tipo' in propiedad:
-            total += 1
-            if propiedad['tipo'] == criterios['tipo']:
-                puntos += 1
-        
-        # Evaluar habitaciones
-        if 'habitaciones_min' in criterios and 'habitaciones' in propiedad:
-            total += 1
-            if propiedad['habitaciones'] >= criterios['habitaciones_min']:
-                puntos += 1
-        
-        # Evaluar zona (si es preferida)
-        if 'zonas_preferidas' in criterios and 'zona' in propiedad:
-            total += 1
-            if propiedad['zona'] in criterios['zonas_preferidas']:
-                puntos += 1
-        
-        return puntos / total if total > 0 else 0.5
-    
-    def _calcular_nivel_relajacion(
-        self, 
-        originales: Dict[str, Any], 
-        actuales: Dict[str, Any]
-    ) -> float:
-        """Calcula qué tanto se han relajado los criterios."""
-        if not originales:
-            return 0.0
-        
-        cambios = 0
-        total = 0
-        
-        # Comparar precio
-        if 'precio_max' in originales and 'precio_max' in actuales:
-            total += 1
-            cambio_precio = (
-                actuales['precio_max'] - originales['precio_max']
-            ) / originales['precio_max']
-            cambios += abs(cambio_precio)
-        
-        # Comparar área
-        if 'area_min' in originales and 'area_min' in actuales:
-            total += 1
-            cambio_area = (
-                originales['area_min'] - actuales['area_min']
-            ) / originales['area_min']
-            cambios += abs(cambio_area)
-        
-        return cambios / total if total > 0 else 0.0
-    
-    def _generar_razon_rechazo(
-        self, 
-        cantidad: int, 
-        score: float, 
-        cantidad_suficiente: bool
-    ) -> str:
-        """Genera razón de rechazo de resultados."""
-        if cantidad == 0:
-            return "No se encontraron propiedades"
-        elif not cantidad_suficiente:
-            return (
-                f"Solo se encontraron {cantidad} propiedades, "
-                f"se requieren al menos {self.min_propiedades}"
-            )
-        else:
-            return (
-                f"Score promedio ({score:.2f}) por debajo del "
-                f"mínimo aceptable ({self.score_minimo})"
-            )
-    
-    def _generar_recomendaciones(
-        self, 
-        propiedades: List[Dict[str, Any]], 
-        criterios: Dict[str, Any]
-    ) -> List[str]:
-        """Genera recomendaciones para relajación."""
-        recomendaciones = []
-        
-        if not propiedades:
-            if 'precio_max' in criterios:
-                recomendaciones.append("Incrementar el presupuesto máximo")
-            if 'area_min' in criterios:
-                recomendaciones.append("Reducir el área mínima requerida")
-            if 'zonas_preferidas' in criterios:
-                recomendaciones.append("Ampliar las zonas de búsqueda")
-        else:
-            # Analizar por qué las propiedades no cumplen
-            precios_altos = sum(
-                1 for p in propiedades 
-                if p.get('precio', 0) > criterios.get('precio_max', float('inf'))
-            )
-            if precios_altos > len(propiedades) / 2:
-                recomendaciones.append("Aumentar presupuesto (muchas opciones superan el máximo)")
-        
-        return recomendaciones
 
-
-def evaluar_resultados(state: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Nodo del grafo: evalúa los resultados actuales.
-    
-    Args:
-        state: Estado actual del sistema
-        
-    Returns:
-        Estado actualizado con evaluación
-    """
-    evaluador = EvaluadorResultados()
-    evaluacion = evaluador.evaluar(state)
-    
-    return {
-        **state,
-        'evaluacion': {
-            'es_aceptable': evaluacion.es_aceptable,
-            'score': evaluacion.score,
-            'razon': evaluacion.razon,
-            'recomendaciones': evaluacion.recomendaciones,
-            'metricas': evaluacion.metricas
+    def _resultado(
+        self,
+        *,
+        es_aceptable: bool,
+        score: float,
+        razon: str,
+        recomendacion: str | None,
+        diagnostico: str,
+    ) -> dict[str, Any]:
+        evaluacion = Evaluacion(
+            es_aceptable=es_aceptable,
+            score=round(score * 10, 2),
+            razon=razon,
+            recomendacion=recomendacion,
+        )
+        return {
+            "evaluacion": evaluacion.model_dump(),
+            "diagnostico": _combinar_diagnosticos(self._diagnostico_actual, diagnostico),
         }
-    }
+
+    def _recomendar_relajacion(
+        self,
+        propiedades: list[Mapping[str, Any]],
+        requisitos: Mapping[str, Any],
+    ) -> str | None:
+        if requisitos.get("precio_max") is not None:
+            precio_max = float(requisitos["precio_max"])
+            if all(float(prop.get("precio") or 0) > precio_max for prop in propiedades):
+                return "precio_max"
+
+        if requisitos.get("area_min") is not None:
+            area_min = float(requisitos["area_min"])
+            if all(float(prop.get("area") or 0) < area_min for prop in propiedades):
+                return "area_min"
+
+        if requisitos.get("habitaciones") is not None:
+            habitaciones = int(requisitos["habitaciones"])
+            if all(int(prop.get("habitaciones") or 0) < habitaciones for prop in propiedades):
+                return "habitaciones"
+
+        if requisitos.get("ubicacion"):
+            return "ubicacion"
+        if requisitos.get("tipo"):
+            return "tipo"
+        return "precio_max"
+
+
+def evaluador(estado: Any) -> dict[str, Any]:
+    """Nodo del grafo: evalua propuesta, propiedades y requisitos."""
+
+    return EvaluadorResultados().evaluar(estado)
+
+
+def evaluar_resultados(estado: Any) -> dict[str, Any]:
+    """Alias de compatibilidad con el nombre anterior del nodo."""
+
+    return evaluador(estado)
+
+
+def _score_propiedad(propiedad: Mapping[str, Any], requisitos: Mapping[str, Any]) -> float:
+    if propiedad.get("score") is not None:
+        return float(propiedad["score"])
+
+    puntos = 0.0
+    total = 0
+
+    comparaciones = [
+        ("precio_max", "precio", lambda valor, limite: valor <= limite),
+        ("area_min", "area", lambda valor, limite: valor >= limite),
+        ("habitaciones", "habitaciones", lambda valor, limite: valor >= limite),
+        ("banos", "banos", lambda valor, limite: valor >= limite),
+        ("parqueadero", "parqueadero", lambda valor, limite: valor >= limite),
+        ("administracion_max", "administracion", lambda valor, limite: valor is None or valor <= limite),
+    ]
+
+    for req_campo, prop_campo, cumple in comparaciones:
+        if requisitos.get(req_campo) is None:
+            continue
+        total += 1
+        if cumple(propiedad.get(prop_campo), requisitos[req_campo]):
+            puntos += 1
+
+    for campo in ("tipo", "ubicacion"):
+        if requisitos.get(campo) is None:
+            continue
+        total += 1
+        if str(requisitos[campo]).lower() in str(propiedad.get(campo, "")).lower():
+            puntos += 1
+
+    return puntos / total if total else 0.5
+
+
+def _promedio(valores: list[float]) -> float:
+    return sum(valores) / len(valores) if valores else 0.0
+
+
+def _get(valor: Any, campo: str, default: Any = None) -> Any:
+    if isinstance(valor, Mapping):
+        return valor.get(campo, default)
+    return getattr(valor, campo, default)
+
+
+def _a_dict(valor: Any) -> dict[str, Any]:
+    if isinstance(valor, Mapping):
+        return dict(valor)
+    if hasattr(valor, "model_dump"):
+        return valor.model_dump(exclude_none=True)
+    if hasattr(valor, "dict"):
+        return valor.dict(exclude_none=True)
+    return {}
+
+
+def _combinar_diagnosticos(actual: Any, nuevo: str) -> str:
+    actual_limpio = str(actual or "").strip()
+    if not actual_limpio:
+        return nuevo
+    if nuevo in actual_limpio:
+        return actual_limpio
+    return f"{actual_limpio}\n{nuevo}"

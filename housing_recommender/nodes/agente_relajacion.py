@@ -1,221 +1,162 @@
-"""
-Módulo de relajación progresiva de criterios.
-Modifica los criterios de búsqueda cuando no se encuentran resultados satisfactorios.
-"""
+"""Nodo de relajacion progresiva de requisitos."""
 
-from typing import Dict, List, Any
+from __future__ import annotations
+
+import sys
 from copy import deepcopy
-import math
+from pathlib import Path
+from typing import Any, Mapping
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from housing_recommender.state.models import EntradaRelajacion
 
 
 class AgenteRelajacion:
-    """
-    Implementa la estrategia de relajación progresiva de criterios.
-    Modifica las condiciones de búsqueda de forma controlada y gradual.
-    """
-    
-    def __init__(
-        self, 
-        factor_precio: float = 0.10,
-        factor_area: float = 0.10,
-        max_relajaciones: int = 5
-    ):
-        """
-        Args:
-            factor_precio: Porcentaje de incremento en precio por iteración
-            factor_area: Porcentaje de reducción en área por iteración
-            max_relajaciones: Número máximo de relajaciones permitidas
-        """
+    """Modifica requisitos actuales y registra cada cambio realizado."""
+
+    def __init__(self, factor_precio: float = 0.10, factor_area: float = 0.10) -> None:
         self.factor_precio = factor_precio
         self.factor_area = factor_area
-        self.max_relajaciones = max_relajaciones
-        
-        # Prioridad de relajación (qué relajar primero)
-        self.estrategia_relajacion = [
-            'precio',
-            'area',
-            'habitaciones',
-            'zonas',
-            'tipo'
-        ]
-    
-    def relajar_criterios(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Relaja los criterios de búsqueda basándose en el estado actual.
-        
-        Args:
-            state: Estado actual del sistema
-            
-        Returns:
-            Estado actualizado con criterios relajados
-        """
-        iteracion_actual = state.get('iteracion_relajacion', 0)
-        
-        if iteracion_actual >= self.max_relajaciones:
+
+    def relajar_requisitos(self, estado: Any) -> dict[str, Any]:
+        iteracion_actual = int(_get(estado, "iteracion", 0) or 0)
+        max_iteraciones = int(_get(estado, "max_iteraciones", 3) or 3)
+
+        if iteracion_actual >= max_iteraciones:
             return {
-                **state,
-                'relajacion_completa': True,
-                'mensaje_relajacion': "Se alcanzó el límite máximo de relajaciones"
+                "relajacion_completa": True,
+                "mensaje_relajacion": "Se alcanzo el limite maximo de relajaciones.",
+                "diagnostico": _combinar_diagnosticos(
+                    _get(estado, "diagnostico"),
+                    "Fallo de relajacion: limite de iteraciones alcanzado.",
+                ),
             }
-        
-        criterios_actuales = deepcopy(state.get('criterios_actuales', {}))
-        historial_relajacion = state.get('historial_relajacion', [])
-        
-        # Determinar qué criterio relajar basado en la iteración
-        cambios_realizados = []
-        
-        # Estrategia adaptativa basada en recomendaciones del evaluador
-        recomendaciones = state.get('evaluacion', {}).get('recomendaciones', [])
-        
-        if recomendaciones:
-            cambios = self._aplicar_recomendaciones(
-                criterios_actuales, 
-                recomendaciones
-            )
-            cambios_realizados.extend(cambios)
-        else:
-            # Estrategia por defecto: relajar según prioridad
-            cambios = self._aplicar_estrategia_default(
-                criterios_actuales, 
-                iteracion_actual
-            )
-            cambios_realizados.extend(cambios)
-        
-        # Registrar cambios en historial
-        registro_relajacion = {
-            'iteracion': iteracion_actual + 1,
-            'cambios': cambios_realizados,
-            'criterios_antes': state.get('criterios_actuales', {}),
-            'criterios_despues': criterios_actuales
-        }
-        historial_relajacion.append(registro_relajacion)
-        
+
+        requisitos = deepcopy(_a_dict(_get(estado, "requisitos", {}) or {}))
+        historial = list(_get(estado, "historial_relajacion", []) or [])
+        evaluacion = _a_dict(_get(estado, "evaluacion", {}) or {})
+        campo_recomendado = evaluacion.get("recomendacion")
+
+        cambio = self._aplicar_relajacion(requisitos, campo_recomendado, iteracion_actual)
+        nueva_iteracion = iteracion_actual + 1
+
+        if cambio is None:
+            return {
+                "iteracion": nueva_iteracion,
+                "relajacion_completa": True,
+                "mensaje_relajacion": "No hay requisitos relajables disponibles.",
+                "diagnostico": _combinar_diagnosticos(
+                    _get(estado, "diagnostico"),
+                    "Fallo de relajacion: no se encontro un campo modificable.",
+                ),
+            }
+
+        entrada = EntradaRelajacion(iteracion=nueva_iteracion, **cambio).model_dump()
+        historial.append(entrada)
+        mensaje = f"Requisito relajado: {entrada['descripcion']}"
+
         return {
-            **state,
-            'criterios_actuales': criterios_actuales,
-            'iteracion_relajacion': iteracion_actual + 1,
-            'historial_relajacion': historial_relajacion,
-            'mensaje_relajacion': self._generar_mensaje_relajacion(cambios_realizados)
+            "requisitos": requisitos,
+            "historial_relajacion": historial,
+            "iteracion": nueva_iteracion,
+            "mensaje_relajacion": mensaje,
+            "relajacion_completa": nueva_iteracion >= max_iteraciones,
+            "diagnostico": _combinar_diagnosticos(_get(estado, "diagnostico"), mensaje),
         }
-    
-    def _aplicar_recomendaciones(
-        self, 
-        criterios: Dict[str, Any], 
-        recomendaciones: List[str]
-    ) -> List[str]:
-        """Aplica relajaciones basadas en recomendaciones del evaluador."""
-        cambios = []
-        
-        for rec in recomendaciones:
-            rec_lower = rec.lower()
-            
-            if 'presupuesto' in rec_lower or 'precio' in rec_lower:
-                cambio = self._relajar_precio(criterios)
-                if cambio:
-                    cambios.append(cambio)
-            
-            if 'área' in rec_lower or 'area' in rec_lower:
-                cambio = self._relajar_area(criterios)
-                if cambio:
-                    cambios.append(cambio)
-            
-            if 'zona' in rec_lower:
-                cambio = self._relajar_zonas(criterios)
-                if cambio:
-                    cambios.append(cambio)
-        
-        return cambios
-    
-    def _aplicar_estrategia_default(
-        self, 
-        criterios: Dict[str, Any], 
-        iteracion: int
-    ) -> List[str]:
-        """Aplica estrategia de relajación por defecto."""
-        cambios = []
-        
-        # Determinar qué relajar según la iteración
-        if iteracion % 3 == 0:  # Iteraciones 0, 3, 6...
-            cambio = self._relajar_precio(criterios)
-            if cambio:
-                cambios.append(cambio)
-        
-        elif iteracion % 3 == 1:  # Iteraciones 1, 4, 7...
-            cambio = self._relajar_area(criterios)
-            if cambio:
-                cambios.append(cambio)
-        
-        else:  # Iteraciones 2, 5, 8...
-            cambio = self._relajar_habitaciones(criterios)
-            if cambio:
-                cambios.append(cambio)
-            cambio = self._relajar_zonas(criterios)
-            if cambio:
-                cambios.append(cambio)
-        
-        return cambios
-    
-    def _relajar_precio(self, criterios: Dict[str, Any]) -> str:
-        """Incrementa el precio máximo."""
-        if 'precio_max' in criterios:
-            precio_anterior = criterios['precio_max']
-            criterios['precio_max'] = int(precio_anterior * (1 + self.factor_precio))
-            return (
-                f"Precio máximo incrementado de ${precio_anterior:,} "
-                f"a ${criterios['precio_max']:,} "
-                f"(+{self.factor_precio*100:.0f}%)"
-            )
-        return ""
-    
-    def _relajar_area(self, criterios: Dict[str, Any]) -> str:
-        """Reduce el área mínima."""
-        if 'area_min' in criterios:
-            area_anterior = criterios['area_min']
-            criterios['area_min'] = int(area_anterior * (1 - self.factor_area))
-            return (
-                f"Área mínima reducida de {area_anterior}m² "
-                f"a {criterios['area_min']}m² "
-                f"(-{self.factor_area*100:.0f}%)"
-            )
-        return ""
-    
-    def _relajar_habitaciones(self, criterios: Dict[str, Any]) -> str:
-        """Reduce número mínimo de habitaciones."""
-        if 'habitaciones_min' in criterios and criterios['habitaciones_min'] > 1:
-            hab_anterior = criterios['habitaciones_min']
-            criterios['habitaciones_min'] -= 1
-            return (
-                f"Habitaciones mínimas reducidas de {hab_anterior} "
-                f"a {criterios['habitaciones_min']}"
-            )
-        return ""
-    
-    def _relajar_zonas(self, criterios: Dict[str, Any]) -> str:
-        """Amplía las zonas de búsqueda."""
-        if 'zonas_preferidas' in criterios:
-            zonas_actuales = len(criterios['zonas_preferidas'])
-            # Esto requeriría acceso a todas las zonas disponibles
-            # Por ahora, solo indicamos la intención
-            return f"Ampliando zonas de búsqueda (actualmente {zonas_actuales} zonas)"
-        return ""
-    
-    def _generar_mensaje_relajacion(self, cambios: List[str]) -> str:
-        """Genera mensaje descriptivo de los cambios realizados."""
-        if not cambios:
-            return "No se realizaron cambios en los criterios"
-        
-        return "Criterios relajados: " + "; ".join(cambios)
+
+    def _aplicar_relajacion(
+        self,
+        requisitos: dict[str, Any],
+        campo_recomendado: str | None,
+        iteracion: int,
+    ) -> dict[str, Any] | None:
+        candidatos = [
+            campo_recomendado,
+            ("precio_max", "area_min", "habitaciones")[iteracion % 3],
+            "precio_max",
+            "area_min",
+            "habitaciones",
+            "ubicacion",
+            "tipo",
+        ]
+
+        for campo in candidatos:
+            if campo == "precio_max" and requisitos.get("precio_max") is not None:
+                anterior = requisitos["precio_max"]
+                nuevo = round(float(anterior) * (1 + self.factor_precio), 2)
+                requisitos["precio_max"] = nuevo
+                return _cambio(campo, anterior, nuevo, "precio_max aumento 10%")
+
+            if campo == "area_min" and requisitos.get("area_min") is not None:
+                anterior = requisitos["area_min"]
+                nuevo = max(1, round(float(anterior) * (1 - self.factor_area), 2))
+                requisitos["area_min"] = nuevo
+                return _cambio(campo, anterior, nuevo, "area_min se redujo 10%")
+
+            if campo == "habitaciones" and requisitos.get("habitaciones") is not None:
+                anterior = int(requisitos["habitaciones"])
+                if anterior <= 1:
+                    continue
+                nuevo = anterior - 1
+                requisitos["habitaciones"] = nuevo
+                return _cambio(campo, anterior, nuevo, "habitaciones minimas bajaron en 1")
+
+            if campo == "ubicacion" and requisitos.get("ubicacion"):
+                anterior = requisitos["ubicacion"]
+                requisitos.pop("ubicacion", None)
+                return _cambio(campo, anterior, None, "se amplio la busqueda a mas zonas")
+
+            if campo == "tipo" and requisitos.get("tipo"):
+                anterior = requisitos["tipo"]
+                requisitos.pop("tipo", None)
+                return _cambio(campo, anterior, None, "se permitieron otros tipos de vivienda")
+
+        return None
 
 
-def relajar_condiciones(state: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Nodo del grafo: relaja las condiciones de búsqueda.
-    
-    Args:
-        state: Estado actual del sistema
-        
-    Returns:
-        Estado actualizado con criterios relajados
-    """
-    agente = AgenteRelajacion()
-    return agente.relajar_criterios(state)
+def agente_relajacion(estado: Any) -> dict[str, Any]:
+    """Nodo del grafo: modifica requisitos y registra historial_relajacion."""
+
+    return AgenteRelajacion().relajar_requisitos(estado)
+
+
+def relajar_condiciones(estado: Any) -> dict[str, Any]:
+    """Alias de compatibilidad con el nombre anterior del nodo."""
+
+    return agente_relajacion(estado)
+
+
+def _cambio(campo: str, antes: Any, despues: Any, descripcion: str) -> dict[str, Any]:
+    return {
+        "campo_relajado": campo,
+        "valor_antes": antes,
+        "valor_despues": despues,
+        "descripcion": descripcion,
+    }
+
+
+def _get(valor: Any, campo: str, default: Any = None) -> Any:
+    if isinstance(valor, Mapping):
+        return valor.get(campo, default)
+    return getattr(valor, campo, default)
+
+
+def _a_dict(valor: Any) -> dict[str, Any]:
+    if isinstance(valor, Mapping):
+        return dict(valor)
+    if hasattr(valor, "model_dump"):
+        return valor.model_dump(exclude_none=True)
+    if hasattr(valor, "dict"):
+        return valor.dict(exclude_none=True)
+    return {}
+
+
+def _combinar_diagnosticos(actual: Any, nuevo: str) -> str:
+    actual_limpio = str(actual or "").strip()
+    if not actual_limpio:
+        return nuevo
+    if nuevo in actual_limpio:
+        return actual_limpio
+    return f"{actual_limpio}\n{nuevo}"

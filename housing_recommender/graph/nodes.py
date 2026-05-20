@@ -1,163 +1,91 @@
-"""
-Implementación de los nodos del grafo.
-Cada función representa una actividad del sistema.
-"""
+"""Nodos conectados por el grafo de LangGraph."""
 
-from typing import Dict, Any
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any, Mapping
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from housing_recommender.nodes.agente_noticias import agente_noticias
+from housing_recommender.nodes.agente_relajacion import agente_relajacion
+from housing_recommender.nodes.ajustar_requisitos import ajustar_requisitos
+from housing_recommender.nodes.construir_propuesta import construir_propuesta
+from housing_recommender.nodes.evaluador import evaluador
+from housing_recommender.nodes.presentar_resultado import presentar_resultado
+from housing_recommender.nodes.propiedades_scraping import propiedades_scraping
 
 
-def interpretar_requisitos(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Interpreta y estructura los requerimientos del usuario."""
-    print("Interpretando requisitos del usuario...")
-    
-    return {
-        **state,
-        'criterios_actuales': state.get('criterios_originales', {}).copy(),
-        'iteracion_relajacion': 0,
-        'historial_relajacion': [],
-        'relajacion_completa': False
-    }
+ZONAS_MEDELLIN = [
+    "El Poblado",
+    "Laureles",
+    "Envigado",
+    "Sabaneta",
+    "Belen",
+    "Robledo",
+    "Centro",
+]
+
+ZONAS_POR_CONTEXTO = {
+    "sur": ["Envigado", "Sabaneta", "El Poblado"],
+    "norte": ["Robledo"],
+    "occidente": ["Laureles", "Belen", "Robledo"],
+    "centro": ["Centro"],
+    "poblado": ["El Poblado"],
+}
 
 
-def identificar_zonas(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Identifica zonas relevantes según criterios."""
-    print("Identificando zonas relevantes...")
-    
-    # Zonas de Medellín
-    todas_zonas = [
-        "El Poblado", "Laureles", "Envigado", "Sabaneta", 
-        "Estadio", "Belén", "La América", "Itagüí"
-    ]
-    
-    # Si el usuario especificó zonas, usar esas; si no, usar todas
-    zonas_preferidas = state.get('criterios_actuales', {}).get('zonas_preferidas', [])
-    
-    if zonas_preferidas:
-        zonas_analizar = zonas_preferidas
+def zonas_contexto(estado: Any) -> dict[str, Any]:
+    """Deriva zonas de busqueda desde requisitos y deja diagnostico trazable."""
+
+    requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
+    ubicacion = str(requisitos.get("ubicacion") or "").strip()
+    clave = ubicacion.lower()
+
+    if not ubicacion:
+        zonas_analizadas = ZONAS_MEDELLIN[:5]
+        zonas_seleccionadas = zonas_analizadas[:3]
+        diagnostico_zonas = (
+            "No se especifico ubicacion; se usaron zonas generales de Medellin "
+            "para ampliar la busqueda inicial."
+        )
     else:
-        zonas_analizar = todas_zonas[:5]  # Tomar las primeras 5
-    
-    print(f"     Zonas a analizar: {', '.join(zonas_analizar)}")
-    
+        zonas_analizadas = ZONAS_POR_CONTEXTO.get(clave, [ubicacion])
+        zonas_seleccionadas = zonas_analizadas[:3]
+        diagnostico_zonas = (
+            f"Se derivaron zonas de busqueda desde la ubicacion solicitada: {ubicacion}."
+        )
+
+    diagnostico = _combinar_diagnosticos(_get(estado, "diagnostico"), diagnostico_zonas)
     return {
-        **state,
-        'zonas_analizadas': zonas_analizar
+        "zonas_analizadas": zonas_analizadas,
+        "zonas_seleccionadas": zonas_seleccionadas,
+        "diagnostico": diagnostico,
     }
 
 
-def evaluar_zonas(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Evalúa las zonas identificadas."""
-    print("Evaluando zonas...")
-    
-    zonas = state.get('zonas_analizadas', [])
-    # Seleccionar las mejores zonas (simplificado)
-    zonas_seleccionadas = zonas[:3] if len(zonas) > 3 else zonas
-    
-    print(f"     Zonas seleccionadas: {', '.join(zonas_seleccionadas)}")
-    
-    return {
-        **state,
-        'zonas_seleccionadas': zonas_seleccionadas
-    }
+def _get(valor: Any, campo: str, default: Any = None) -> Any:
+    if isinstance(valor, Mapping):
+        return valor.get(campo, default)
+    return getattr(valor, campo, default)
 
 
-def buscar_propiedades(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Busca propiedades en las zonas seleccionadas."""
-    print("Buscando propiedades...")
-    
-    criterios = state.get('criterios_actuales', {})
-    zonas = state.get('zonas_seleccionadas', [])
-    
-    # Simulación de búsqueda de propiedades
-    # En un sistema real, ACÁ SE CONSULTA A LA API O LA BD DE PROPIEDADES
-    propiedades_simuladas = []
-    
-    for i, zona in enumerate(zonas):
-        # Generar 1-2 propiedades por zona
-        for j in range(2):
-            precio_base = criterios.get('precio_max', 300_000_000)
-            area_base = criterios.get('area_min', 70)
-            
-            # Variar un poco los valores
-            import random
-            factor = random.uniform(0.8, 1.2)
-            
-            propiedad = {
-                'id': len(propiedades_simuladas) + 1,
-                'zona': zona,
-                'precio': int(precio_base * factor),
-                'area': int(area_base * random.uniform(0.9, 1.3)),
-                'habitaciones': criterios.get('habitaciones_min', 2) + random.randint(-1, 1),
-                'tipo': criterios.get('tipo', 'apartamento'),
-                'direccion': f"Calle {random.randint(1, 100)} #{random.randint(1, 50)}-{random.randint(1, 99)}"
-            }
-            
-            # Asegurar valores mínimos
-            propiedad['habitaciones'] = max(1, propiedad['habitaciones'])
-            propiedad['area'] = max(30, propiedad['area'])
-            
-            propiedades_simuladas.append(propiedad)
-    
-    print(f"     Propiedades encontradas: {len(propiedades_simuladas)}")
-    
-    return {
-        **state,
-        'propiedades_encontradas': propiedades_simuladas
-    }
+def _a_dict(valor: Any) -> dict[str, Any]:
+    if isinstance(valor, Mapping):
+        return dict(valor)
+    if hasattr(valor, "model_dump"):
+        return valor.model_dump(exclude_none=True)
+    if hasattr(valor, "dict"):
+        return valor.dict(exclude_none=True)
+    return {}
 
 
-def filtrar_propiedades(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Filtra propiedades según criterios actuales."""
-    print("--Filtrando propiedades...")
-    
-    propiedades = state.get('propiedades_encontradas', [])
-    criterios = state.get('criterios_actuales', {})
-    
-    filtradas = []
-    for prop in propiedades:
-        cumple = True
-        
-        # Filtrar por precio
-        if 'precio_max' in criterios:
-            if prop.get('precio', 0) > criterios['precio_max']:
-                cumple = False
-        
-        # Filtrar por área
-        if 'area_min' in criterios:
-            if prop.get('area', 0) < criterios['area_min']:
-                cumple = False
-        
-        # Filtrar por habitaciones
-        if 'habitaciones_min' in criterios:
-            if prop.get('habitaciones', 0) < criterios['habitaciones_min']:
-                cumple = False
-        
-        # Filtrar por tipo
-        if 'tipo' in criterios:
-            if prop.get('tipo', '') != criterios['tipo']:
-                cumple = False
-        
-        if cumple:
-            filtradas.append(prop)
-    
-    print(f"     Propiedades que cumplen criterios: {len(filtradas)}")
-    
-    return {
-        **state,
-        'propiedades_filtradas': filtradas
-    }
-
-
-def presentar_resultados_nodo(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Prepara resultados finales para presentación."""
-    print("--Preparando presentación de resultados...")
-    
-    from housing_recommender.nodes.presentar_resultado import generar_recomendaciones
-    
-    recomendaciones, explicaciones = generar_recomendaciones(state)
-    
-    return {
-        **state,
-        'recomendaciones_finales': recomendaciones,
-        'explicaciones': explicaciones
-    }
+def _combinar_diagnosticos(actual: Any, nuevo: str) -> str:
+    actual_limpio = str(actual or "").strip()
+    if not actual_limpio:
+        return nuevo
+    if nuevo in actual_limpio:
+        return actual_limpio
+    return f"{actual_limpio}\n{nuevo}"

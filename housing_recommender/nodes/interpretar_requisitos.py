@@ -7,12 +7,17 @@ Este nodo también se ejecuta en iteraciones posteriores cuando el ciclo
 de relajación lo invoca para refinar los requisitos.
 """
 
-from pathlib import Path
-from services.llm_client import get_llm
-from langchain_core.prompts import ChatPromptTemplate
+from __future__ import annotations
 
-from state.models import AgentState, Requisito
-from config.settings import settings
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from housing_recommender.services.llm_client import generar_json_estructurado
+from housing_recommender.services.requisitos_parser import extraer_requisitos_desde_texto
+from housing_recommender.state.models import AgentState, Requisito
 
 
 # Carga el prompt desde el archivo de texto (una sola vez, al importar el módulo)
@@ -31,25 +36,19 @@ def interpretar_requisitos(state: AgentState) -> dict:
     Returns:
         dict con la clave 'requisitos' que LangGraph fusionará en el estado.
     """
-    # 1. Preparar el LLM con structured output sobre nuestro modelo Pydantic
-    llm = get_llm(temperature=0)
-    llm_estructurado = llm.with_structured_output(Requisito)
-
-    # 2. Construir el prompt rellenando los placeholders
     requisitos_previos_str = (
         state.requisitos.model_dump_json(indent=2)
         if state.requisitos is not None
         else "Ninguno. Esta es la primera iteración."
     )
 
-    prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-    mensaje = prompt.format(
+    mensaje = PROMPT_TEMPLATE.format(
         texto_usuario=state.textoUsuario,
         requisitos_previos=requisitos_previos_str,
     )
 
-    # 3. Invocar al LLM
-    requisitos_extraidos: Requisito = llm_estructurado.invoke(mensaje)
+    requisitos_extraidos = generar_json_estructurado(mensaje)
+    if requisitos_extraidos is None:
+        requisitos_extraidos = extraer_requisitos_desde_texto(state.textoUsuario)
 
-    # 4. Devolver la actualización del estado
-    return {"requisitos": requisitos_extraidos}
+    return {"requisitos": Requisito(**requisitos_extraidos)}

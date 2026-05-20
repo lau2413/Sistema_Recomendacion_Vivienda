@@ -1,6 +1,14 @@
 # prueba_nodo.py (archivo temporal de prueba)
-from state.models import AgentState
-from nodes.interpretar_requisitos import interpretar_requisitos
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from housing_recommender.nodes.interpretar_requisitos import interpretar_requisitos
+from housing_recommender.state.models import AgentState
 
 # Caso de prueba 1: una frase típica
 state_inicial = AgentState(

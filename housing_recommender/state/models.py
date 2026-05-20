@@ -1,5 +1,5 @@
 # state/models.py
-from typing import Optional, Literal, Annotated
+from typing import Any, Optional, Literal, Annotated
 from pydantic import BaseModel, Field
 from operator import add
 
@@ -67,8 +67,8 @@ class EntradaRelajacion(BaseModel):
     """Registro de una ronda de relajación de criterios."""
     iteracion: int
     campo_relajado: str = Field(description="Nombre del campo modificado (e.g. 'precio_max').")
-    valor_antes: float = Field(description="Valor del campo antes de relajar.")
-    valor_despues: float = Field(description="Valor del campo después de relajar.")
+    valor_antes: Any = Field(description="Valor del campo antes de relajar.")
+    valor_despues: Any = Field(description="Valor del campo después de relajar.")
     descripcion: str = Field(description="Texto legible del cambio realizado.")
 
 
@@ -96,6 +96,7 @@ class AgentState(BaseModel):
 
     # Contexto externo (noticias/señales del sector)
     noticias: Optional[list[Noticia]] = None
+    diagnostico_noticias: Optional[Any] = None
 
     # Propuesta construida y evaluación de calidad
     propuesta: Optional[Propuesta] = None

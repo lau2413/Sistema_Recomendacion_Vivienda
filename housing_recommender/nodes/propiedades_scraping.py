@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from typing import Any, Mapping
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from housing_recommender.services.scraping_client import obtener_propiedades
 from housing_recommender.state.models import Propiedad
