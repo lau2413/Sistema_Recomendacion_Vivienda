@@ -95,6 +95,10 @@ def _formatear_propiedad(
     ]
     if propiedad.get("parqueadero") is not None:
         partes.append(f"{int(propiedad.get('parqueadero') or 0)} parqueaderos")
+    if propiedad.get("fuente"):
+        partes.append(f"fuente {propiedad['fuente']}")
+    if propiedad.get("url"):
+        partes.append(f"url {propiedad['url']}")
     if propiedad.get("score") is not None:
         partes.append(f"score {float(propiedad['score']):.2f}")
 
@@ -120,6 +124,10 @@ def _cumplimiento_resumido(
             if propiedad["habitaciones"] >= requisitos["habitaciones"]
             else "habitaciones ajustadas"
         )
+    if requisitos.get("banos") is not None and propiedad.get("banos") is not None:
+        cumplidos.append("banos" if propiedad["banos"] >= requisitos["banos"] else "banos ajustados")
+    if requisitos.get("tipo") is not None and propiedad.get("tipo") is not None:
+        cumplidos.append("tipo" if propiedad["tipo"] == requisitos["tipo"] else "tipo ajustado")
     if not cumplidos:
         return ""
     return "cumple: " + ", ".join(cumplidos)

@@ -9,15 +9,25 @@ from typing import Any, Mapping
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from housing_recommender.config.settings import settings
 from housing_recommender.state.models import Evaluacion
 
 
 class EvaluadorResultados:
     """Evalua propuesta, propiedades disponibles y requisitos actuales."""
 
-    def __init__(self, min_propiedades: int = 1, score_minimo: float = 0.6) -> None:
-        self.min_propiedades = min_propiedades
-        self.score_minimo = score_minimo
+    def __init__(
+        self,
+        min_propiedades: int | None = None,
+        score_minimo: float | None = None,
+    ) -> None:
+        score_configurado = (
+            settings.score_minimo_aceptable / 10
+            if settings.score_minimo_aceptable > 1
+            else settings.score_minimo_aceptable
+        )
+        self.min_propiedades = min_propiedades or settings.min_alternativas
+        self.score_minimo = score_minimo if score_minimo is not None else score_configurado
 
     def evaluar(self, estado: Any) -> dict[str, Any]:
         self._diagnostico_actual = _get(estado, "diagnostico")
@@ -33,7 +43,7 @@ class EvaluadorResultados:
                 es_aceptable=False,
                 score=0.0,
                 razon="No se encontraron propiedades para evaluar.",
-                recomendacion="precio_max",
+                recomendacion=None,
                 diagnostico="Fallo de busqueda: el scraper no devolvio propiedades.",
             )
 
@@ -133,11 +143,17 @@ class EvaluadorResultados:
             if all(int(prop.get("habitaciones") or 0) < habitaciones for prop in propiedades):
                 return "habitaciones"
 
+        if requisitos.get("banos") is not None:
+            banos = int(requisitos["banos"])
+            if all(int(prop.get("banos") or 0) < banos for prop in propiedades):
+                return "banos"
+
         if requisitos.get("ubicacion"):
             return "ubicacion"
         if requisitos.get("tipo"):
             return "tipo"
         return "precio_max"
+
 
 
 def evaluador(estado: Any) -> dict[str, Any]:

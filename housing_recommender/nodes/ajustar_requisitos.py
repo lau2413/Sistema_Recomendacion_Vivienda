@@ -9,7 +9,10 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from housing_recommender.services.llm_client import generar_json_estructurado
-from housing_recommender.services.requisitos_parser import extraer_requisitos_desde_texto
+from housing_recommender.services.requisitos_parser import (
+    extraer_requisitos_desde_texto,
+    normalizar_requisitos_entrada,
+)
 
 PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "ajustar_requisitos.txt"
 
@@ -17,14 +20,14 @@ PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "ajustar_requisi
 def ajustar_requisitos(estado: Any) -> dict[str, Any]:
     """Interpreta textoUsuario y mantiene una copia inmutable de requisitos."""
 
-    requisitos = _a_dict(_get(estado, "requisitos", {}) or {})
+    requisitos = normalizar_requisitos_entrada(_a_dict(_get(estado, "requisitos", {}) or {}))
     texto_usuario = _get(estado, "textoUsuario", "")
 
     if texto_usuario:
+        requisitos.update(extraer_requisitos_desde_texto(str(texto_usuario)))
         extraidos = _extraer_con_llm(str(texto_usuario), requisitos)
-        if extraidos is None:
-            extraidos = extraer_requisitos_desde_texto(str(texto_usuario))
-        requisitos.update(_sin_nulos(extraidos))
+        if extraidos is not None:
+            requisitos.update(normalizar_requisitos_entrada(_sin_nulos(extraidos)))
 
     cambios: dict[str, Any] = {"requisitos": requisitos}
     if _get(estado, "requisitos_originales") is None:

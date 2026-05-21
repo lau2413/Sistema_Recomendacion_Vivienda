@@ -52,7 +52,7 @@ def debe_continuar(state: Any) -> Literal["continuar", "finalizar"]:
     iteracion = _get(state, 'iteracion', 0)
     max_iteraciones = _get(state, 'max_iteraciones', 3)
 
-    if relajacion_completa or iteracion >= max_iteraciones:
+    if relajacion_completa or iteracion > max_iteraciones:
         return "finalizar"
     return "continuar"
 

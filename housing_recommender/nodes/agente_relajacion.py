@@ -66,7 +66,7 @@ class AgenteRelajacion:
             "historial_relajacion": historial,
             "iteracion": nueva_iteracion,
             "mensaje_relajacion": mensaje,
-            "relajacion_completa": nueva_iteracion >= max_iteraciones,
+            "relajacion_completa": False,
             "nivel_relajacion_aplicado": nivel_relajacion,
             "diagnostico": _combinar_diagnosticos(_get(estado, "diagnostico"), mensaje),
         }
@@ -79,9 +79,10 @@ class AgenteRelajacion:
     ) -> dict[str, Any] | None:
         candidatos = [
             campo_recomendado,
-            ("precio_max", "area_min", "habitaciones")[iteracion % 3],
+            ("precio_max", "area_min", "banos", "habitaciones")[iteracion % 4],
             "precio_max",
             "area_min",
+            "banos",
             "habitaciones",
             "ubicacion",
             "tipo",
@@ -107,6 +108,14 @@ class AgenteRelajacion:
                 nuevo = anterior - 1
                 requisitos["habitaciones"] = nuevo
                 return _cambio(campo, anterior, nuevo, "habitaciones minimas bajaron en 1")
+
+            if campo == "banos" and requisitos.get("banos") is not None:
+                anterior = int(requisitos["banos"])
+                if anterior <= 1:
+                    continue
+                nuevo = anterior - 1
+                requisitos["banos"] = nuevo
+                return _cambio(campo, anterior, nuevo, "banos minimos bajaron en 1")
 
             if campo == "ubicacion" and requisitos.get("ubicacion"):
                 anterior = requisitos["ubicacion"]
@@ -169,6 +178,8 @@ def _calcular_nivel_relajacion(originales: Mapping[str, Any], actuales: Mapping[
         cambios.append(abs(float(originales["area_min"]) - float(actuales["area_min"])) / float(originales["area_min"]))
     if originales.get("habitaciones") and actuales.get("habitaciones"):
         cambios.append(abs(int(originales["habitaciones"]) - int(actuales["habitaciones"])) / max(1, int(originales["habitaciones"])))
+    if originales.get("banos") and actuales.get("banos"):
+        cambios.append(abs(int(originales["banos"]) - int(actuales["banos"])) / max(1, int(originales["banos"])))
     if originales.get("ubicacion") and not actuales.get("ubicacion"):
         cambios.append(1.0)
     if originales.get("tipo") and not actuales.get("tipo"):

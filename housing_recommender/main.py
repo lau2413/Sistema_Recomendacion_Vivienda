@@ -9,6 +9,7 @@ from typing import Any
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from housing_recommender.config.settings import settings
 from housing_recommender.graph.builder import construir_grafo
 from housing_recommender.nodes.presentar_resultado import presentar_resultados
 
@@ -41,7 +42,7 @@ def ejecutar_sistema(criterios_usuario: dict[str, Any] | str):
         "evaluacion": None,
         "historial_relajacion": [],
         "iteracion": 0,
-        "max_iteraciones": 3,
+        "max_iteraciones": settings.max_iteraciones_relajacion,
         "relajacion_completa": False,
         "nivel_relajacion_aplicado": 0.0,
         "diagnostico": "",
@@ -56,12 +57,9 @@ def ejecutar_sistema(criterios_usuario: dict[str, Any] | str):
 
 
 if __name__ == "__main__":
-    criterios_ejemplo = {
-        "precio_max": 300_000_000,
-        "area_min": 70,
-        "habitaciones": 2,
-        "tipo": "apartamento",
-        "ubicacion": "Laureles",
-    }
+    criterios_ejemplo = (
+        "Busco apartamento hasta 540 millones, con 2 habitaciones "
+        "para una familia en Medellin."
+    )
 
     ejecutar_sistema(criterios_ejemplo)

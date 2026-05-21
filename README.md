@@ -77,7 +77,7 @@ flowchart TD
 
 `ajustar_requisitos`
 
-Interpreta la entrada del usuario y produce un objeto `Requisito`. Usa `generar_json_estructurado` si hay proveedor LLM configurado; si no, cae al parser local `extraer_requisitos_desde_texto`. También guarda `requisitos_originales`.
+Interpreta la entrada del usuario y produce un objeto `Requisito`. La entrada puede ser texto plano, por ejemplo "busco apartamento hasta 430 millones", o un diccionario estructurado. Esto responde a la consigna de preferencias explicitas o implicitas. Usa `generar_json_estructurado` si hay proveedor LLM configurado; si no, cae al parser local `extraer_requisitos_desde_texto`. Tambien normaliza alias comunes como `habitaciones_min`, `zonas_preferidas`, `presupuesto` o `area`, y guarda `requisitos_originales`.
 
 `zonas_contexto`
 
@@ -165,16 +165,13 @@ cd housing_recommender
 python main.py
 ```
 
-Ejemplo de entrada estructurada usada en `main.py`:
+Ejemplo de entrada en texto plano usada en `main.py`:
 
 ```python
-criterios_ejemplo = {
-    "precio_max": 300_000_000,
-    "area_min": 70,
-    "habitaciones": 2,
-    "tipo": "apartamento",
-    "ubicacion": "Laureles",
-}
+criterios_ejemplo = (
+    "Busco apartamento hasta 540 millones, con 2 habitaciones "
+    "para una familia en Medellin."
+)
 ```
 
 Salida esperada, resumida:
@@ -209,6 +206,7 @@ Variables relevantes:
 - `openai_api_key`, `google_api_key`, `news_api_key`.
 - `max_iteraciones_relajacion`.
 - `score_minimo_aceptable`.
+- `min_alternativas`: minimo de recomendaciones requeridas para aceptar la propuesta.
 
 Para ejecuciones reproducibles sin credenciales, el proyecto funciona con proveedores `mock`.
 

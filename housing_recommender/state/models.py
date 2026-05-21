@@ -30,6 +30,8 @@ class Propiedad(BaseModel):
     tipo: str
     area: float
     administracion: Optional[float] = None
+    fuente: Optional[str] = None
+    url: Optional[str] = None
     score: Optional[float] = Field(
         default=None,
         description="Qué tanto cumple esta propiedad los requisitos. La asigna el evaluador."
@@ -38,9 +40,11 @@ class Propiedad(BaseModel):
 
 class Noticia(BaseModel):
     """Pieza de contexto del sector inmobiliario."""
+    ubicacion: Optional[str] = None
     fuente: str
     texto: str
     resumen: str
+    impacto_score: float = 0.0
 
 
 class Propuesta(BaseModel):

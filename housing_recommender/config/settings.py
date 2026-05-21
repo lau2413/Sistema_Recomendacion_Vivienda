@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # Otros
     max_iteraciones_relajacion: int = 3
     score_minimo_aceptable: float = 7.0
+    min_alternativas: int = 3
 
     model_config = SettingsConfigDict(
         env_file=".env",

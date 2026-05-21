@@ -1,109 +1,95 @@
-"""
-Ejemplos de ejecución del sistema con diferentes casos de uso.
-Demuestra el comportamiento del sistema bajo distintos escenarios.
-"""
+"""Ejemplos de ejecucion del sistema con casos exitosos y restrictivos."""
 
-import sys
+from __future__ import annotations
+
 import os
+import sys
 
-# Agregar el directorio padre al path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from housing_recommender.main import ejecutar_sistema
 
 
+def ejemplo_texto_libre():
+    """Caso principal: el usuario expresa preferencias en lenguaje natural."""
+
+    print("\n" + "=" * 80)
+    print("--EJEMPLO 1: Texto libre con resultados esperados--")
+    print("=" * 80)
+
+    texto = (
+        "Busco apartamento  con 2 habitaciones, 3 baños "
+        "y al menos 90 metros cuadrados.."
+    )
+    return ejecutar_sistema(texto)
+
+
 def ejemplo_caso_ideal():
-    """Caso donde los criterios iniciales encuentran resultados."""
-    print("\n" + "="*80)
-    print("--EJEMPLO 1: Caso ideal - Criterios alcanzables--")
-    print("="*80)
-    
+    """Caso estructurado donde los criterios iniciales encuentran resultados."""
+
+    print("\n" + "=" * 80)
+    print("--EJEMPLO 2: Criterios estructurados alcanzables--")
+    print("=" * 80)
+
     criterios = {
-        'precio_max': 400_000_000,
-        'area_min': 60,
-        'habitaciones_min': 2,
-        'tipo': 'apartamento',
-        'zonas_preferidas': ['El Poblado', 'Laureles', 'Envigado']
+        "precio_max": 540_000_000,
+        "habitaciones": 2,
+        "tipo": "apartamento",
     }
-    
-    resultado = ejecutar_sistema(criterios)
-    return resultado
+    return ejecutar_sistema(criterios)
 
 
 def ejemplo_caso_restrictivo():
-    """Caso con criterios muy restrictivos que requieren relajación."""
-    print("\n" + "="*80)
-    print("--EJEMPLO 2: Criterios restrictivos - Requiere relajación--")
-    print("="*80)
-    
+    """Caso con criterios muy restrictivos que requiere relajacion."""
+
+    print("\n" + "=" * 80)
+    print("--EJEMPLO 3: Criterios restrictivos con relajacion--")
+    print("=" * 80)
+
     criterios = {
-        'precio_max': 150_000_000,
-        'area_min': 120,
-        'habitaciones_min': 4,
-        'tipo': 'apartamento',
-        'zonas_preferidas': ['El Poblado']
+        "precio_max": 150_000_000,
+        "area_min": 120,
+        "habitaciones": 4,
+        "tipo": "apartamento",
+        "ubicacion": "El Poblado",
     }
-    
-    resultado = ejecutar_sistema(criterios)
-    return resultado
+    return ejecutar_sistema(criterios)
 
 
-def ejemplo_presupuesto_medio():
-    """Caso con presupuesto medio y criterios balanceados."""
-    print("\n" + "="*80)
-    print("--EJEMPLO 3: Presupuesto medio - Búsqueda balanceada--")
-    print("="*80)
-    
-    criterios = {
-        'precio_max': 250_000_000,
-        'area_min': 75,
-        'habitaciones_min': 3,
-        'tipo': 'apartamento',
-        'zonas_preferidas': ['Laureles', 'Estadio', 'Belén']
-    }
-    
-    resultado = ejecutar_sistema(criterios)
-    return resultado
+def ejecutar_todos_ejemplos() -> None:
+    """Ejecuta todos los ejemplos de demostracion."""
 
+    print("\n" + "#" * 80)
+    print("# DEMOSTRACION DEL SISTEMA DE RECOMENDACION DE VIVIENDAS")
+    print("#" * 80)
 
-def ejecutar_todos_ejemplos():
-    """Ejecuta todos los ejemplos de demostración."""
-    print("\n" + "#"*80)
-    print("# DEMOSTRACIÓN DEL SISTEMA DE RECOMENDACIÓN DE VIVIENDAS")
-    print("#"*80)
-    
     ejemplos = [
-        ("Caso Ideal", ejemplo_caso_ideal),
-        ("Caso Restrictivo", ejemplo_caso_restrictivo),
-        ("Presupuesto Medio", ejemplo_presupuesto_medio),
+        ("Texto libre", ejemplo_texto_libre),
+        ("Caso ideal", ejemplo_caso_ideal),
+        ("Caso restrictivo", ejemplo_caso_restrictivo),
     ]
-    
     resultados = {}
-    
+
     for nombre, funcion_ejemplo in ejemplos:
         try:
-            resultado = funcion_ejemplo()
-            resultados[nombre] = resultado
+            resultados[nombre] = funcion_ejemplo()
             input("\nPresiona Enter para continuar con el siguiente ejemplo...")
-        except Exception as e:
-            print(f"\nError en {nombre}: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    # Resumen comparativo
-    print("\n" + "#"*80)
+        except EOFError:
+            continue
+        except Exception as exc:
+            print(f"\nError en {nombre}: {exc}")
+
+    print("\n" + "#" * 80)
     print("# RESUMEN COMPARATIVO")
-    print("#"*80 + "\n")
-    
+    print("#" * 80 + "\n")
+
     for nombre, resultado in resultados.items():
-        iteraciones = resultado.get('iteracion_relajacion', 0)
-        num_propiedades = len(resultado.get('propiedades_filtradas', []))
-        score = resultado.get('evaluacion', {}).get('score', 0)
-        
+        evaluacion = resultado.get("evaluacion") or {}
         print(f"{nombre}:")
-        print(f"  - Iteraciones de relajación: {iteraciones}")
-        print(f"  - Propiedades encontradas: {num_propiedades}")
-        print(f"  - Score promedio: {score:.1%}")
+        print(f"  - Iteraciones de relajacion: {resultado.get('iteracion', 0)}")
+        print(f"  - Propiedades filtradas: {len(resultado.get('propiedades_filtradas') or [])}")
+        print(f"  - Recomendaciones finales: {len(resultado.get('recomendaciones_finales') or [])}")
+        print(f"  - Score evaluador: {evaluacion.get('score', 0):.2f}/10")
         print()
 
 
