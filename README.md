@@ -235,3 +235,11 @@ Las limitaciones actuales son normales para un prototipo:
 - Las noticias se integran de forma ligera; un sistema productivo debería clasificar impacto, actualidad y confiabilidad de cada fuente.
 
 Como siguiente paso, convendría convertir los diagnósticos en objetos estructurados, agregar pruebas unitarias por nodo y crear un conjunto de escenarios de evaluación con preferencias compatibles e incompatibles.
+
+---
+
+# 👥 Equipo de desarrollo
+
+- Laura Jiménez  
+- Sofía Mejia Rivas  
+- Daniela Gerena  
