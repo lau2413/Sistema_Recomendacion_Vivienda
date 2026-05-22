@@ -218,7 +218,6 @@ python -m venv .venv
 pip install -r requirements.txt
 python -m compileall housing_recommender
 python -m housing_recommender.main
-python prueba_persona2.py
 ```
 
 ## Reflexión crítica 🤔
